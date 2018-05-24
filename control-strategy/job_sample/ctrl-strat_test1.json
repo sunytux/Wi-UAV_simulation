@@ -1,0 +1,17 @@
+{
+	"scenario": "subrealcity.json",
+	"drone": {"x": 110,  "y":420, "z": 100, "u": 0, "v": 0, "w": 0},
+	"terminals": [
+        {"x": 55, "y": 77, "z": 76, "u": 0, "v": 0, "w": 0},
+		{"x": 536, "y": 244, "z": 1.8, "u": 0, "v": 0, "w": 0},
+ 		{"x": 386, "y": 272, "z": 1.8, "u": 0, "v": 0, "w": 0},
+		{"x": 536, "y": 144, "z": 1.8, "u": 0, "v": 0, "w": 0},
+		{"x": 308, "y": 121, "z": 1.8, "u": 0, "v": 0, "w": 0}
+	],
+	"routine-algo": "optimize",
+	"AoA-algo": "weighted-rss",
+	"max-iteration":12,
+	"simulation-output-csv": "/tmp/sim/flight.csv",
+	"CloudRT-output-dir": "/tmp/sim/CloudRT",
+	"use-database": true
+}
