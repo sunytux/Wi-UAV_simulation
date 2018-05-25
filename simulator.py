@@ -28,10 +28,10 @@ Options:
 import logging
 
 
-def main(logger, drone, user, bs, env):
+def main(logger, drone, user, bs, mapEnv):
 
     while True:
-        antennas = rayTracing(drone, user, bs, env)
+        antennas = rayTracing(drone, user, bs, mapEnv)
 
         drone.updateAntenna(*antennas)
 
@@ -43,40 +43,56 @@ def args():
     logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger(__name__)
 
-    # TODO adapt this part
-    user = 0
-    bs = 0
-    env = 0
-    drone = Drone(0, 0, logger)
+    user = Terminal(logger, 0, 0, 0, 0)
+    bs = Terminal(logger, 0, 0, 0, 0)
+    drone = Drone(logger, 0, 0, 120, 0)
+    mapEnv = 0
 
-    return [logger, drone, user, bs, env]
+    return [logger, drone, user, bs, mapEnv]
 
 
-def rayTracing(drone, user, bs, env):
+def rayTracing(drone, user, bs, mapEnv):
     """Compute received signal on the antenna for a given situation."""
-    return [0, 0, 0, 0]
+    return [Antenna()] * 4
 
 
-class Drone(object):
-    """docstring for Drone"""
-    def __init__(self, x, y, logger):
+class Antenna(object):
+    """docstring for Antenna"""
+    def __init__(self):
+        pass
+
+
+class Terminal(object):
+    """docstring for Terminal"""
+    def __init__(self, logger, x, y, z, yaw):
+        # super(Terminal, self).__init__()
+        self.logger = logger
         self.x = x
         self.y = y
-        self.z = 0
-        self.yaw = 0
+        self.z = z
+        self.yaw = yaw
 
-        self.ant1 = 0
-        self.ant2 = 0
-        self.ant3 = 0
-        self.ant4 = 0
+        self.antennas = [Antenna()]
 
-        self.logger = logger
+    def _addAntenna(self):
+        self.antennas.append(Antenna())
 
     def updatePos(self, x, y):
         pass
 
-    def updateAntenna(self, ant1, ant2, ant3, ant4):
-        pass
+    def updateAntenna(self, *antennas):
+        for idx, ant in zip(range(len(antennas)), antennas):
+            self.antennas[idx] = ant
+
+
+class Drone(Terminal):
+    """docstring for Drone"""
+    def __init__(self, logger, x, y, z, yaw):
+        Terminal.__init__(self, logger, x, y, z, yaw)
+
+        self._addAntenna()
+        self._addAntenna()
+        self._addAntenna()
 
     def routine(self):
         self.logger.debug('Hello from drone routine')
