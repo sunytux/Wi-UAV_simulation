@@ -28,16 +28,59 @@ Options:
 import logging
 
 
+def main(logger, drone, user, bs, env):
+
+    while True:
+        antennas = rayTracing(drone, user, bs, env)
+
+        drone.updateAntenna(*antennas)
+
+        drone.routine()
+
+
 def args():
     """Handle arguments for the main function."""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger(__name__)
 
-    return [logger]
+    # TODO adapt this part
+    user = 0
+    bs = 0
+    env = 0
+    drone = Drone(0, 0, logger)
+
+    return [logger, drone, user, bs, env]
 
 
-def main(logger):
-    pass
+def rayTracing(drone, user, bs, env):
+    """Compute received signal on the antenna for a given situation."""
+    return [0, 0, 0, 0]
+
+
+class Drone(object):
+    """docstring for Drone"""
+    def __init__(self, x, y, logger):
+        self.x = x
+        self.y = y
+        self.z = 0
+        self.yaw = 0
+
+        self.ant1 = 0
+        self.ant2 = 0
+        self.ant3 = 0
+        self.ant4 = 0
+
+        self.logger = logger
+
+    def updatePos(self, x, y):
+        pass
+
+    def updateAntenna(self, ant1, ant2, ant3, ant4):
+        pass
+
+    def routine(self):
+        self.logger.debug('Hello from drone routine')
+        pass
 
 
 if __name__ == '__main__':
