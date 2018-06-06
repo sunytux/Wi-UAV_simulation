@@ -15,25 +15,34 @@ Options:
     -h, --help
 """
 import matlab.engine
+import os
+import tempfile
 
 # TODO find a cleaner way to handle directories
-PROJECT_PWD = "/home/sami/desk/wireless_UAV_simulator/" \
-              "CloudRT_+_UAV_simulator/project/subcity"
+RESULT_DIR = tempfile.mkdtemp()
 
 
 class CloudRT():
     """docstring for CloudRT wrapper"""
-    def __init__(self, CloudRTPath):
-        self.CloudRTPath = CloudRTPath
+
+    CLOUDRT_DIR = os.path.join(os.getcwd(), "CloudRT_app")
+
+    def __init__(self, resultDir):
+        self.resultDir = resultDir
 
         self.eng = matlab.engine.start_matlab()
-        self.eng.cd(CloudRTPath)
+        self.eng.cd(self.CLOUDRT_DIR)
 
-        self.conf = self.eng.initConf(CloudRTPath)
+        self.conf = self.eng.initConf(resultDir)
+
+        # Setting initial Drone/User positions
+        # Random place outside of a building: (538, 459)
+        self.setTxPose(100, 100, 40, 0, 180, 0)
+        self.setRxPose(538, 459, 2, 0, 0, 0)
 
     def simulate(self):
         self.conf, result = self.eng.simulate(self.conf,
-                                              self.CloudRTPath,
+                                              self.resultDir,
                                               nargout=2)
         self.eng.workspace['result'] = result
 
@@ -42,22 +51,25 @@ class CloudRT():
 
         return CTF_Im
 
-    def updateDronePosition(self, x, y):
-        self.conf = self.eng.updateDronePosition(self.conf,
-                                                 self.CloudRTPath,
-                                                 x, y)
+    def setTxPose(self, x, y, z, u, v, w):
+        self.conf = self.eng.setTxPose(self.conf, self.resultDir,
+                                       x, y, z, u, v, w)
+
+    def setRxPose(self, x, y, z, u, v, w):
+        self.conf = self.eng.setRxPose(self.conf, self.resultDir,
+                                       x, y, z, u, v, w)
 
 
 def main():
 
-    rt = CloudRT(PROJECT_PWD)
+    rt = CloudRT(RESULT_DIR)
 
-    rt.updateDronePosition(300, 100)
+    rt.setTxPose(300, 100, 40, 0, 180, 0)
 
     CTF_Im = rt.simulate()
     print("The computed CTF_Im", CTF_Im)
 
-    rt.updateDronePosition(50, 200)
+    rt.setTxPose(50, 200, 40, 0, 180, 0)
 
     CTF_Im = rt.simulate()
     print("The computed CTF_Im", CTF_Im)
