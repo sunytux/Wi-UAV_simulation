@@ -47,9 +47,11 @@ class CloudRT():
         self.eng.workspace['result'] = result
 
         # TODO define what metric should be used
-        CTF_Im = self.eng.eval('result.result.CTF_Im')
+        # TODO define which idx
+        CTF_Re = self.eng.eval('single(result.result.CTF_Re(1))')
+        CTF_Im = self.eng.eval('single(result.result.CTF_Im(1))')
 
-        return CTF_Im
+        return CTF_Re, CTF_Im
 
     def setTxPose(self, x, y, z, u, v, w):
         self.conf = self.eng.setTxPose(self.conf, self.resultDir,

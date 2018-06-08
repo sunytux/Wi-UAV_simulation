@@ -27,21 +27,33 @@ Options:
 """
 import logging
 import tempfile
+import math
 from rayTracingWrapper import CloudRT
 
 
 def main(logger, drone, user, bs):
 
     RESULT_DIR = tempfile.mkdtemp()
+    LOG_FILE = "flight.log"
+
+    f = open(LOG_FILE, 'w')
 
     rt = CloudRT(RESULT_DIR)
     rt.setTxPose(drone.x, drone.y, drone.z, drone.u, drone.v, drone.w)
     rt.setTxPose(user.x, user.y, user.z, user.u, user.v, user.w)
 
-    # while True:
-    rayTracing(rt, drone, user, bs)
+    for i in xrange(1, 3):
+        rayTracing(rt, drone, user, bs)
 
-    drone.routine()
+        drone.routine()
+        log(f, drone, user, bs)
+
+
+def log(f, drone, user, bs):
+    line = ",".join(["{:.3f}"] * 8) + "\n"
+    line = line.format(drone.x, drone.y, user.x, user.y, bs.x, bs.y,
+                       drone.ant[0].rss, drone.ant[1].rss)
+    f.write(line)
 
 
 def args():
@@ -64,28 +76,40 @@ def rayTracing(rt, drone, user, bs):
     rt.setTxPose(user.x, user.y, user.z, user.u, user.v, user.w)
     rt.setRxPose(drone.x, drone.y, drone.z, drone.u, drone.v, drone.w)
 
-    CTF_Im = rt.simulate()
-    drone.ant[0].CTF_Im = CTF_Im
+    IQ = rt.simulate()
+    drone.ant[0].setIQ(*IQ)
 
     # Base-station to Drone
     rt.setTxPose(bs.x, bs.y, bs.z, bs.u, bs.v, bs.w)
     rt.setRxPose(drone.x, drone.y, drone.z, drone.u, drone.v, drone.w)
 
-    CTF_Im = rt.simulate()
-    drone.ant[1].CTF_Im = CTF_Im
+    IQ = rt.simulate()
+    drone.ant[1].setIQ(*IQ)
 
 
 class Antenna(object):
     """docstring for Antenna"""
     def __init__(self):
-        self.CTF_Im = 0
-        self.CTF_Re = 0
+        self.Re = 0  # I
+        self.Im = 0  # Q
+
+    def setIQ(self, Re, Im):
+        self.Im = Im
+        self.Re = Re
+
+    @property
+    def rss(self):
+        return 10 * math.log10(10 * (math.pow(self.Im, 2.0) +
+                                     math.pow(self.Re, 2.0)))
+
+    @rss.setter
+    def rss(self, amount):
+        pass
 
 
 class Terminal(object):
     """docstring for Terminal"""
     def __init__(self, logger, x, y, z, u, v, w):
-        # super(Terminal, self).__init__()
         self.logger = logger
         self.x = x
         self.y = y
@@ -113,8 +137,11 @@ class Drone(Terminal):
     def routine(self):
         self.logger.debug('Hello from drone routine')
         self.logger.info('Drone is at (%d, %d, %d)', self.x, self.y, self.z)
-        self.logger.info('User to drone: ant0 = ' + str(self.ant[0].CTF_Im[0]))
-        self.logger.info('User to drone: ant1 = ' + str(self.ant[1].CTF_Im[0]))
+        self.logger.info('User to drone: rss = ' + str(self.ant[0].rss))
+        self.logger.info('User to drone: rss = ' + str(self.ant[1].rss))
+
+        self.x += 20
+        self.y += 10
 
 
 if __name__ == '__main__':
