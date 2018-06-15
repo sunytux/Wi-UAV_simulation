@@ -20,13 +20,17 @@ def main():
 
     plt.title("Flight")
 
+    i = 0
     for row in f:
-        plt.plot(row[0], row[1], 'kv', markersize=10)
+        i += 1
+        c = '#' + ''.join('{:02X}'.format(a) for a in [i * 255 / 15] * 3)
+        plt.plot(row[0], row[1], 'v', markersize=10, markerfacecolor=c,
+                 markeredgecolor=c,)
         plt.plot(row[2], row[3], 'r*', markersize=10)
         plt.plot(row[4], row[5], 'go', markersize=10)
 
-    plt.xlabel("In phase")
-    plt.ylabel("Quadrature")
+    plt.xlabel("x")
+    plt.ylabel("y")
     plt.axis('equal')
 
     plt.show()

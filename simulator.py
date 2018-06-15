@@ -28,12 +28,14 @@ Options:
 import logging
 import tempfile
 import math
+import numpy as np
 from rayTracingWrapper import CloudRT
 
 
 def main(logger, drone, user, bs):
 
     RESULT_DIR = tempfile.mkdtemp()
+    RESULT_DIR = "/tmp/result"
     LOG_FILE = "flight.log"
 
     f = open(LOG_FILE, 'w')
@@ -62,9 +64,9 @@ def args():
     logger = logging.getLogger(__name__)
 
     # TODO cleaner way to handle initial value
-    user = Terminal(logger, 538, 459, 2, 0, 0, 0)
-    bs = Terminal(logger, 96, 69, 2, 0, 0, 0)
-    drone = Drone(logger, 50, 200, 40, 0, 180, 0)
+    user = baseStation(logger, 538, 459, 2, 0, 0, 0)
+    bs = baseStation(logger, 96, 69, 2, 0, 0, 0)
+    drone = Drone(logger, 200, 300, 120, 0, 0, 0)
 
     return [logger, drone, user, bs]
 
@@ -72,16 +74,31 @@ def args():
 def rayTracing(rt, drone, user, bs):
     """Compute received signal on the antenna for a given situation."""
 
+    # Only simulate drone's front and back antenna
     # User to Drone
-    rt.setTxPose(user.x, user.y, user.z, user.u, user.v, user.w)
-    rt.setRxPose(drone.x, drone.y, drone.z, drone.u, drone.v, drone.w)
+    rt.setTxPose(user.x, user.y, user.z,
+                 user.u + user.ant[0].u,
+                 user.v + user.ant[0].v,
+                 user.w + user.ant[0].w)
+    # 0 is front
+    rt.setRxPose(drone.x, drone.y, drone.z,
+                 drone.u + drone.ant[0].u,
+                 drone.v + drone.ant[0].v,
+                 drone.w + drone.ant[0].w)
 
     IQ = rt.simulate()
     drone.ant[0].setIQ(*IQ)
 
     # Base-station to Drone
-    rt.setTxPose(bs.x, bs.y, bs.z, bs.u, bs.v, bs.w)
-    rt.setRxPose(drone.x, drone.y, drone.z, drone.u, drone.v, drone.w)
+    rt.setTxPose(bs.x, bs.y, bs.z,
+                 bs.u + bs.ant[0].u,
+                 bs.v + bs.ant[0].v,
+                 bs.w + bs.ant[0].w)
+    # 1 is back
+    rt.setRxPose(drone.x, drone.y, drone.z,
+                 drone.u + drone.ant[1].u,
+                 drone.v + drone.ant[1].v,
+                 drone.w + drone.ant[1].w)
 
     IQ = rt.simulate()
     drone.ant[1].setIQ(*IQ)
@@ -89,9 +106,12 @@ def rayTracing(rt, drone, user, bs):
 
 class Antenna(object):
     """docstring for Antenna"""
-    def __init__(self):
+    def __init__(self, u, v, w):
         self.Re = 0  # I
         self.Im = 0  # Q
+        self.u = u
+        self.v = v
+        self.w = w
 
     def setIQ(self, Re, Im):
         self.Im = Im
@@ -118,13 +138,18 @@ class Terminal(object):
         self.v = v
         self.w = w
 
-        self.ant = [Antenna()]
+        self.ant = []
 
-    def _addAntenna(self):
-        self.ant.append(Antenna())
+    def _addAntenna(self, u, v, w):
+        self.ant.append(Antenna(u, v, w))
 
-    def updatePos(self, x, y):
-        pass
+
+class baseStation(Terminal):
+    """docstring for baseStation"""
+    def __init__(self, logger, x, y, z, u, v, w):
+        Terminal.__init__(self, logger, x, y, z, u, v, w)
+
+        self._addAntenna(0, 0, 0)
 
 
 class Drone(Terminal):
@@ -132,7 +157,11 @@ class Drone(Terminal):
     def __init__(self, logger, x, y, z, u, v, w):
         Terminal.__init__(self, logger, x, y, z, u, v, w)
 
-        self._addAntenna()
+        # TODO find cleaner way to access antennas
+        self._addAntenna(0, 0, 90)  # front
+        self._addAntenna(180, 0, 90)  # back
+        self._addAntenna(90, 0, 90)  # left-side
+        self._addAntenna(-90, 0, 90)  # right-side
 
     def routine(self):
         self.logger.debug('Hello from drone routine')
@@ -140,8 +169,21 @@ class Drone(Terminal):
         self.logger.info('User to drone: rss = ' + str(self.ant[0].rss))
         self.logger.info('User to drone: rss = ' + str(self.ant[1].rss))
 
-        self.x += 20
-        self.y += 10
+        dUser = [538 - self.x, 459 - self.y]
+        dUser /= np.linalg.norm(dUser)
+        dBs = [200 - self.x, 300 - self.y]
+        dBs /= np.linalg.norm(dBs)
+
+        # user RSS < bs RSS -> go to user
+        if self.ant[0].rss <= self.ant[1].rss:
+            d = dUser
+        else:
+            d = dBs
+
+        COEF = 40
+
+        self.x += COEF * d[0]
+        self.y += COEF * d[1]
 
 
 if __name__ == '__main__':
