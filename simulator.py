@@ -29,7 +29,7 @@ import logging
 import tempfile
 import math
 import numpy as np
-from rayTracingWrapper import CloudRT
+from rayTracingWrapper import CloudRT, PathLoss
 
 
 def main(logger, drone, user, bs):
@@ -40,18 +40,25 @@ def main(logger, drone, user, bs):
 
     f = open(LOG_FILE, 'w')
 
-    rt = CloudRT(RESULT_DIR)
+    # rt = CloudRT(RESULT_DIR)
+    rt = PathLoss()
     rt.setTxPose(drone.x, drone.y, drone.z, drone.u, drone.v, drone.w)
     rt.setTxPose(user.x, user.y, user.z, user.u, user.v, user.w)
 
-    for i in xrange(1, 3):
+    for i in xrange(1, 12):
         rayTracing(rt, drone, user, bs)
 
         drone.routine()
-        log(f, drone, user, bs)
+        log(logger, f, drone, user, bs)
+
+    f.close()
 
 
-def log(f, drone, user, bs):
+def log(logger, f, drone, user, bs):
+    logger.info('Drone is at (%d, %d, %d)', drone.x, drone.y, drone.z)
+    logger.info('User to drone: rss = ' + str(drone.ant[0].rss))
+    logger.info('User to drone: rss = ' + str(drone.ant[1].rss))
+
     line = ",".join(["{:.3f}"] * 8) + "\n"
     line = line.format(drone.x, drone.y, user.x, user.y, bs.x, bs.y,
                        drone.ant[0].rss, drone.ant[1].rss)
@@ -64,9 +71,10 @@ def args():
     logger = logging.getLogger(__name__)
 
     # TODO cleaner way to handle initial value
-    user = baseStation(logger, 538, 459, 2, 0, 0, 0)
-    bs = baseStation(logger, 96, 69, 2, 0, 0, 0)
-    drone = Drone(logger, 200, 300, 120, 0, 0, 0)
+    user = baseStation(538, 459, 2, 0, 0, 0)
+    bs = baseStation(96, 69, 2, 0, 0, 0)
+    # drone = Drone(200, 300, 120, 0, 0, 0)
+    drone = Drone(0, 300, 120, 0, 0, 0)
 
     return [logger, drone, user, bs]
 
@@ -129,8 +137,7 @@ class Antenna(object):
 
 class Terminal(object):
     """docstring for Terminal"""
-    def __init__(self, logger, x, y, z, u, v, w):
-        self.logger = logger
+    def __init__(self, x, y, z, u, v, w):
         self.x = x
         self.y = y
         self.z = z
@@ -146,16 +153,16 @@ class Terminal(object):
 
 class baseStation(Terminal):
     """docstring for baseStation"""
-    def __init__(self, logger, x, y, z, u, v, w):
-        Terminal.__init__(self, logger, x, y, z, u, v, w)
+    def __init__(self, x, y, z, u, v, w):
+        Terminal.__init__(self, x, y, z, u, v, w)
 
         self._addAntenna(0, 0, 0)
 
 
 class Drone(Terminal):
     """docstring for Drone"""
-    def __init__(self, logger, x, y, z, u, v, w):
-        Terminal.__init__(self, logger, x, y, z, u, v, w)
+    def __init__(self, x, y, z, u, v, w):
+        Terminal.__init__(self, x, y, z, u, v, w)
 
         # TODO find cleaner way to access antennas
         self._addAntenna(0, 0, 90)  # front
@@ -164,14 +171,9 @@ class Drone(Terminal):
         self._addAntenna(-90, 0, 90)  # right-side
 
     def routine(self):
-        self.logger.debug('Hello from drone routine')
-        self.logger.info('Drone is at (%d, %d, %d)', self.x, self.y, self.z)
-        self.logger.info('User to drone: rss = ' + str(self.ant[0].rss))
-        self.logger.info('User to drone: rss = ' + str(self.ant[1].rss))
-
         dUser = [538 - self.x, 459 - self.y]
         dUser /= np.linalg.norm(dUser)
-        dBs = [200 - self.x, 300 - self.y]
+        dBs = [96 - self.x, 69 - self.y]
         dBs /= np.linalg.norm(dBs)
 
         # user RSS < bs RSS -> go to user
