@@ -31,25 +31,20 @@ import math
 import numpy as np
 from rayTracingWrapper import CloudRT, PathLoss
 
+# TODO make it clean
+RESULT_DIR = tempfile.mkdtemp()
+RESULT_DIR = "/tmp/result"
+LOG_FILE = "flight.log"
 
-def main(logger, drone, user, bs):
 
-    RESULT_DIR = tempfile.mkdtemp()
-    RESULT_DIR = "/tmp/result"
-    LOG_FILE = "flight.log"
+def main(logger, drone, env):
 
     f = open(LOG_FILE, 'w')
 
-    # rt = CloudRT(RESULT_DIR)
-    rt = PathLoss()
-    rt.setTxPose(drone.x, drone.y, drone.z, drone.u, drone.v, drone.w)
-    rt.setTxPose(user.x, user.y, user.z, user.u, user.v, user.w)
+    for i in range(1, 12):
 
-    for i in xrange(1, 12):
-        rayTracing(rt, drone, user, bs)
-
-        drone.routine()
-        log(logger, f, drone, user, bs)
+        drone.routine(env)
+        log(logger, f, drone, env.user, env.bs)
 
     f.close()
 
@@ -73,43 +68,10 @@ def args():
     # TODO cleaner way to handle initial value
     user = baseStation(538, 459, 2, 0, 0, 0)
     bs = baseStation(96, 69, 2, 0, 0, 0)
-    # drone = Drone(200, 300, 120, 0, 0, 0)
+    env = EnvironmentRF(bs, user)
     drone = Drone(0, 300, 120, 0, 0, 0)
 
-    return [logger, drone, user, bs]
-
-
-def rayTracing(rt, drone, user, bs):
-    """Compute received signal on the antenna for a given situation."""
-
-    # Only simulate drone's front and back antenna
-    # User to Drone
-    rt.setTxPose(user.x, user.y, user.z,
-                 user.u + user.ant[0].u,
-                 user.v + user.ant[0].v,
-                 user.w + user.ant[0].w)
-    # 0 is front
-    rt.setRxPose(drone.x, drone.y, drone.z,
-                 drone.u + drone.ant[0].u,
-                 drone.v + drone.ant[0].v,
-                 drone.w + drone.ant[0].w)
-
-    IQ = rt.simulate()
-    drone.ant[0].setIQ(*IQ)
-
-    # Base-station to Drone
-    rt.setTxPose(bs.x, bs.y, bs.z,
-                 bs.u + bs.ant[0].u,
-                 bs.v + bs.ant[0].v,
-                 bs.w + bs.ant[0].w)
-    # 1 is back
-    rt.setRxPose(drone.x, drone.y, drone.z,
-                 drone.u + drone.ant[1].u,
-                 drone.v + drone.ant[1].v,
-                 drone.w + drone.ant[1].w)
-
-    IQ = rt.simulate()
-    drone.ant[1].setIQ(*IQ)
+    return [logger, drone, env]
 
 
 class Antenna(object):
@@ -127,6 +89,7 @@ class Antenna(object):
 
     @property
     def rss(self):
+        # TODO verif
         return 10 * math.log10(10 * (math.pow(self.Im, 2.0) +
                                      math.pow(self.Re, 2.0)))
 
@@ -159,6 +122,39 @@ class baseStation(Terminal):
         self._addAntenna(0, 0, 0)
 
 
+class EnvironmentRF(object):
+    """docstring for EnvironmentRF"""
+    def __init__(self, bs, user):
+        self.bs = bs
+        self.user = user
+
+        self.rt = PathLoss()
+
+    def scan(self, drone, tx):
+        """Compute received signal on drone antennas for a given situation."""
+
+        # TODO find cleaner way
+        if tx == "bs":
+            tx = self.bs
+        elif tx == "user":
+            tx = self.user
+
+        self.rt.setTxPose(tx.x, tx.y, tx.z,
+                          tx.u + tx.ant[0].u,
+                          tx.v + tx.ant[0].v,
+                          tx.w + tx.ant[0].w)
+
+        # TODO leave the 4
+        for i in range(4):
+            self.rt.setRxPose(drone.x, drone.y, drone.z,
+                              drone.u + drone.ant[i].u,
+                              drone.v + drone.ant[i].v,
+                              drone.w + drone.ant[i].w)
+
+            IQ = self.rt.simulate()
+            drone.ant[i].setIQ(*IQ)
+
+
 class Drone(Terminal):
     """docstring for Drone"""
     def __init__(self, x, y, z, u, v, w):
@@ -170,14 +166,25 @@ class Drone(Terminal):
         self._addAntenna(90, 0, 90)  # left-side
         self._addAntenna(-90, 0, 90)  # right-side
 
-    def routine(self):
+    def routine(self, env):
+
+        # Drone-user
+        env.scan(self, "user")
+        # TODO Remove
         dUser = [538 - self.x, 459 - self.y]
         dUser /= np.linalg.norm(dUser)
+        userRss = max([a.rss for a in self.ant])
+
+        # Drone-bs
+        env.scan(self, "bs")
+
+        # TODO Remove
         dBs = [96 - self.x, 69 - self.y]
         dBs /= np.linalg.norm(dBs)
+        bsRss = max([a.rss for a in self.ant])
 
         # user RSS < bs RSS -> go to user
-        if self.ant[0].rss <= self.ant[1].rss:
+        if userRss <= bsRss:
             d = dUser
         else:
             d = dBs

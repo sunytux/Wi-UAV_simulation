@@ -26,7 +26,7 @@ function [ conf ] = initConf(resultDir)
     %%% mechanism
     conf.setLOS(1);
     conf.setReflection(1);
-    conf.setReflectionOrder(3);
+    conf.setReflectionOrder(2);
     conf.setScattering(1);
     conf.setScatteringMode('Lambert'); % DirectiveMode or Lambert
     conf.setTransmission(0);
