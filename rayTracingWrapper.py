@@ -20,6 +20,9 @@ import tempfile
 import math
 import numpy as np
 
+# TODO remove this feature
+import StringIO
+
 # TODO find a cleaner way to handle directories
 RESULT_DIR = tempfile.mkdtemp()
 
@@ -31,11 +34,12 @@ class CloudRT():
 
     def __init__(self, resultDir):
         self.resultDir = resultDir
+        self.out = StringIO.StringIO()
 
         self.eng = matlab.engine.start_matlab()
         self.eng.cd(self.CLOUDRT_DIR)
 
-        self.conf = self.eng.initConf(resultDir)
+        self.conf = self.eng.initConf(resultDir, stdout=self.out)
 
         # Setting initial Drone/User positions
         # Random place outside of a building: (538, 459)
@@ -45,7 +49,7 @@ class CloudRT():
     def simulate(self):
         self.conf, result = self.eng.simulate(self.conf,
                                               self.resultDir,
-                                              nargout=2)
+                                              nargout=2, stdout=self.out)
         self.eng.workspace['result'] = result
 
         # TODO define what metric should be used
@@ -57,11 +61,11 @@ class CloudRT():
 
     def setTxPose(self, x, y, z, u, v, w):
         self.conf = self.eng.setTxPose(self.conf, self.resultDir,
-                                       x, y, z, u, v, w)
+                                       x, y, z, u, v, w, stdout=self.out)
 
     def setRxPose(self, x, y, z, u, v, w):
         self.conf = self.eng.setRxPose(self.conf, self.resultDir,
-                                       x, y, z, u, v, w)
+                                       x, y, z, u, v, w, stdout=self.out)
 
 
 class PathLoss(object):
