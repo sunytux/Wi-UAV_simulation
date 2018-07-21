@@ -26,7 +26,7 @@ function [ conf ] = initConf(resultDir)
     %%% mechanism
     conf.setLOS(1);
     conf.setReflection(1);
-    conf.setReflectionOrder(2);
+    conf.setReflectionOrder(0); %% TODO change back to 2
     conf.setScattering(1);
     conf.setScatteringMode('Lambert'); % DirectiveMode or Lambert
     conf.setTransmission(0);
@@ -37,15 +37,15 @@ function [ conf ] = initConf(resultDir)
 
     %% Map & Material Configuration
     %%% Scenario (Map)
-    conf.scenario.load(fullfile(ConfigureClass.databasePath, 'scenario', 'subrealcity.json'));
+    conf.scenario.load(fullfile(ConfigureClass.databasePath, 'scenario', 'Plank.json'));
 
     %%% Material
     conf.material.setFrequency(f);
     conf.material.matchByLibrary(conf.scenario.getMaterialNames);
 
     %%% Antenna
-    conf.antenna.Tx.load(fullfile(ConfigureClass.databasePath, 'antenna', 'Microstripantenna.json'));
-    conf.antenna.Rx.load(fullfile(ConfigureClass.databasePath, 'antenna', 'omni_vert_pol.json'));
+    conf.antenna.Tx.load(fullfile(ConfigureClass.databasePath, 'antenna', 'omni_vert_pol.json'));
+    conf.antenna.Rx.load(fullfile(ConfigureClass.databasePath, 'antenna', 'Microstripantenna.json'));
 
 
     %% Terminals Configuration
