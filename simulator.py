@@ -28,50 +28,50 @@ Options:
 import logging
 import tempfile
 import math
-import numpy as np
 from rayTracingWrapper import CloudRT, PathLoss
+import numpy as np
 
 # TODO make it clean
 RESULT_DIR = tempfile.mkdtemp()
 RESULT_DIR = "/tmp/result"
 LOG_FILE = "flight.log"
 
+logging.basicConfig(level=logging.DEBUG)
+LOGGER = logging.getLogger(__name__)
 
-def main(logger, drone, env):
 
-    f = open(LOG_FILE, 'w')
+def main(f):
+
+    user = baseStation(325, 250, 2, 0, 0, 0)
+    bs = baseStation(96, 69, 200, 0, 0, 0)
+    env = EnvironmentRF(bs, user)
+
+    # antOffset = np.deg2rad(range(0, 360, 20))
+    drone = Drone(425, 300, 100, 0, 0, 0)
 
     for i in range(1, 12):
-
+        LOGGER.debug("Iterration %d", i)
         drone.routine(env)
-        log(logger, f, drone, env.user, env.bs)
+        log(f, drone, env.user, env.bs)
 
     f.close()
 
 
-def log(logger, f, drone, user, bs):
-    logger.info('Drone is at (%d, %d, %d)', drone.x, drone.y, drone.z)
-    logger.info('User to drone: rss = ' + str(drone.ant[0].rss))
-    logger.info('User to drone: rss = ' + str(drone.ant[1].rss))
+def log(f, drone, user, bs):
+    line = [drone.x, drone.y, user.x, user.y, bs.x, bs.y]
+    line += [float(a.rss) for a in drone.ant]
+    lineFmt = ",".join(["{:.16f}"] * len(line)) + "\n"
+    line = lineFmt.format(*line)
 
-    line = ",".join(["{:.3f}"] * 8) + "\n"
-    line = line.format(drone.x, drone.y, user.x, user.y, bs.x, bs.y,
-                       drone.ant[0].rss, drone.ant[1].rss)
     f.write(line)
 
 
 def args():
     """Handle arguments for the main function."""
-    logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger(__name__)
 
-    # TODO cleaner way to handle initial value
-    user = baseStation(538, 459, 2, 0, 0, 0)
-    bs = baseStation(96, 69, 2, 0, 0, 0)
-    env = EnvironmentRF(bs, user)
-    drone = Drone(0, 300, 120, 0, 0, 0)
+    f = open(LOG_FILE, 'w')
 
-    return [logger, drone, env]
+    return [f]
 
 
 class Antenna(object):
@@ -84,14 +84,17 @@ class Antenna(object):
         self.w = w
 
     def setIQ(self, Re, Im):
+        if Re == 0 and Im == 0:
+            LOGGER.warning("Re = 0 and Im = 0")
         self.Im = Im
         self.Re = Re
 
     @property
     def rss(self):
-        # TODO verif
-        return 10 * math.log10(10 * (math.pow(self.Im, 2.0) +
-                                     math.pow(self.Re, 2.0)))
+        # TODO clean that
+        if self.Re == 0 and self.Im == 0:
+            return -999
+        return self.Im**2 + self.Re**2
 
     @rss.setter
     def rss(self, amount):
@@ -128,7 +131,8 @@ class EnvironmentRF(object):
         self.bs = bs
         self.user = user
 
-        self.rt = PathLoss()
+        # self.rt = PathLzoss()
+        self.rt = CloudRT(RESULT_DIR, quiteMode=True)
 
     def scan(self, drone, tx):
         """Compute received signal on drone antennas for a given situation."""
@@ -144,8 +148,7 @@ class EnvironmentRF(object):
                           tx.v + tx.ant[0].v,
                           tx.w + tx.ant[0].w)
 
-        # TODO leave the 4
-        for i in range(4):
+        for i in range(len(drone.ant)):
             self.rt.setRxPose(drone.x, drone.y, drone.z,
                               drone.u + drone.ant[i].u,
                               drone.v + drone.ant[i].v,
@@ -157,42 +160,53 @@ class EnvironmentRF(object):
 
 class Drone(Terminal):
     """docstring for Drone"""
-    def __init__(self, x, y, z, u, v, w):
+    DEFAULT_ANTENNAS_OFFSET = np.deg2rad([0, 90, 180, 270])
+
+    def __init__(self, x, y, z, u, v, w, antOffset=DEFAULT_ANTENNAS_OFFSET):
         Terminal.__init__(self, x, y, z, u, v, w)
 
-        # TODO find cleaner way to access antennas
-        self._addAntenna(0, 0, 90)  # front
-        self._addAntenna(180, 0, 90)  # back
-        self._addAntenna(90, 0, 90)  # left-side
-        self._addAntenna(-90, 0, 90)  # right-side
+        self.antOffset = antOffset
+
+        for offset in self.antOffset:
+            self._addAntenna(np.deg2rad(90) + offset, np.deg2rad(90), 0)
 
     def routine(self, env):
 
         # Drone-user
         env.scan(self, "user")
-        # TODO Remove
-        dUser = [538 - self.x, 459 - self.y]
-        dUser /= np.linalg.norm(dUser)
-        userRss = max([a.rss for a in self.ant])
+        AoA = self.getAoA_maxRSS()
 
-        # Drone-bs
-        env.scan(self, "bs")
+        LOGGER.debug('User to drone: AoA = ' + str(np.rad2deg(AoA)))
 
-        # TODO Remove
-        dBs = [96 - self.x, 69 - self.y]
-        dBs /= np.linalg.norm(dBs)
-        bsRss = max([a.rss for a in self.ant])
+        d = [math.cos(AoA + self.u), math.sin(AoA + self.u)]
 
-        # user RSS < bs RSS -> go to user
-        if userRss <= bsRss:
-            d = dUser
-        else:
-            d = dBs
-
-        COEF = 40
+        COEF = 20
 
         self.x += COEF * d[0]
         self.y += COEF * d[1]
+
+    def getAoA_maxRSS(self):
+        """Return the estimated AoA using the maximum rss algorithm.
+
+        Return : AoA relative to the drone in radians.
+        """
+        rss = [(i, self.ant[i].rss) for i in range(len(self.ant))]
+        rss = sorted(rss, key=lambda a: a[1])[-1]
+
+        return self.antOffset[rss[0]]
+
+    def getAoA_weightedRSS(self):
+        """Return the estimated AoA using the weighted-rss algorithm.
+
+        Return : AoA relative to the drone in radians.
+        """
+        rss = [(i, self.ant[i].rss) for i in range(len(self.ant))]
+        rss = sorted(rss, key=lambda a: a[1])[:2]
+
+        phi1, rss1 = self.antOffset[rss[0][0]], rss[0][1]
+        phi2, rss2 = self.antOffset[rss[1][0]], rss[1][1]
+
+        return (rss1 * phi1 + rss2 * phi2) / (rss1 + rss2)
 
 
 if __name__ == '__main__':
