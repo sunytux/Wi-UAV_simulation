@@ -7,7 +7,7 @@ Usage:
     plotFlight.py [<PATH>]
 
 Arguments:
-    <PATH>          Path to the flight logs [default: ./flight.log].
+    <PATH>          Path to flight logs [default: ./flight.log].
 
 Options:
     -h, --help
