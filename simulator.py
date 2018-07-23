@@ -47,11 +47,14 @@ def main(f):
     env = EnvironmentRF(bs, user)
 
     # antOffset = np.deg2rad(range(0, 360, 20))
-    drone = Drone(425, 300, 100, 0, 0, 0)
+    drone = Drone(100, 300, 100, 0, 0, 0,
+                  routineAlgo="locate",
+                  AoAAlgo="max-rss")
 
     for i in range(1, 12):
         LOGGER.debug("Iterration %d", i)
         drone.routine(env)
+        # FIXME next iteration of drone info are logged
         log(f, drone, env.user, env.bs)
 
     f.close()
@@ -162,21 +165,60 @@ class Drone(Terminal):
     """docstring for Drone"""
     DEFAULT_ANTENNAS_OFFSET = np.deg2rad([0, 90, 180, 270])
 
-    def __init__(self, x, y, z, u, v, w, antOffset=DEFAULT_ANTENNAS_OFFSET):
+    def __init__(self, x, y, z, u, v, w, antOffset=DEFAULT_ANTENNAS_OFFSET,
+                 routineAlgo="locate", AoAAlgo="max-rss"):
         Terminal.__init__(self, x, y, z, u, v, w)
 
         self.antOffset = antOffset
+
+        self.routineAlgo = routineAlgo
+        self.AoAAlgo = AoAAlgo
 
         for offset in self.antOffset:
             self._addAntenna(np.deg2rad(90) + offset, np.deg2rad(90), 0)
 
     def routine(self, env):
+        if self.routineAlgo == "locate":
+            self.routine_locate(env)
+        elif self.routineAlgo == "optimize":
+            self.routine_optimize(env)
+
+    def routine_optimize(self, env):
+        # Drone-user
+        env.scan(self, "user")
+        AoAUser = self.getAoA()
+        maxRssUser = max([a.rss for a in self.ant])
+
+        LOGGER.debug('User to drone: AoA = ' + str(np.rad2deg(AoAUser)))
+        LOGGER.debug('User to drone: rss = ' + str(np.rad2deg(maxRssUser)))
+
+        # Drone-base-station
+        env.scan(self, "bs")
+        AoABs = self.getAoA()
+        maxRssBs = max([a.rss for a in self.ant])
+
+        LOGGER.debug('Bs to drone: AoA = ' + str(np.rad2deg(AoABs)))
+        LOGGER.debug('Bs to drone: rss = ' + str(maxRssBs))
+
+        if maxRssBs > maxRssUser:
+            d = [math.cos(AoAUser + self.u), math.sin(AoAUser + self.u)]
+        else:
+            d = [math.cos(AoABs + self.u), math.sin(AoABs + self.u)]
+
+        COEF = 20
+
+        self.x += COEF * d[0]
+        self.y += COEF * d[1]
+
+    def routine_locate(self, env):
 
         # Drone-user
         env.scan(self, "user")
-        AoA = self.getAoA_maxRSS()
+        AoA = self.getAoA()
+        maxRss = max([a.rss for a in self.ant])
 
         LOGGER.debug('User to drone: AoA = ' + str(np.rad2deg(AoA)))
+        LOGGER.debug('User to drone: rss = ' + str(maxRss))
 
         d = [math.cos(AoA + self.u), math.sin(AoA + self.u)]
 
@@ -184,6 +226,12 @@ class Drone(Terminal):
 
         self.x += COEF * d[0]
         self.y += COEF * d[1]
+
+    def getAoA(self):
+        if self.AoAAlgo == "max-rss":
+            return self.getAoA_maxRSS()
+        elif self.AoAAlgo == "weighted-rss":
+            return self.getAoA_weightedRSS()
 
     def getAoA_maxRSS(self):
         """Return the estimated AoA using the maximum rss algorithm.
@@ -201,7 +249,7 @@ class Drone(Terminal):
         Return : AoA relative to the drone in radians.
         """
         rss = [(i, self.ant[i].rss) for i in range(len(self.ant))]
-        rss = sorted(rss, key=lambda a: a[1])[:2]
+        rss = sorted(rss, key=lambda a: a[1])[:-3:-1]
 
         phi1, rss1 = self.antOffset[rss[0][0]], rss[0][1]
         phi2, rss2 = self.antOffset[rss[1][0]], rss[1][1]
