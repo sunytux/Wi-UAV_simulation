@@ -1,40 +1,72 @@
 #! /usr/bin/python2.7 -u
 # -*- coding: utf-8 -*-
 
-"""TODO
+"""Plot the trajectory of a flight simulation.
 
 Usage:
-    plotFlight.py
+    plotFlight.py [<PATH>]
 
 Arguments:
+    <PATH>          Path to the flight logs [default: ./flight.log].
 
 Options:
     -h, --help
 """
 import csv
 import matplotlib.pyplot as plt
+import numpy as np
+from docopt import docopt
 
 
-def main():
-    f = csv.reader(open("flight.log", 'r'))
+def main(path):
 
-    plt.title("Flight")
+    with open(path) as f:
+        reader = csv.reader(f)
+        # next(reader) # skip header
+        data = np.array([r for r in reader])
 
-    i = 0
-    for row in f:
-        i += 1
-        c = '#' + ''.join('{:02X}'.format(a) for a in [i * 255 / 15] * 3)
-        plt.plot(row[0], row[1], 'v', markersize=10, markerfacecolor=c,
-                 markeredgecolor=c,)
-        plt.plot(row[2], row[3], 'r*', markersize=10)
-        plt.plot(row[4], row[5], 'go', markersize=10)
+        drone = data[:, :2]
+        user = data[:, 2:4]
+        bs = data[:, 4:6]
 
-    plt.xlabel("x")
-    plt.ylabel("y")
+    # Drone trajectory
+    plt.plot(drone[:, 0], drone[:, 1], 'o-',
+             color='gainsboro',
+             markersize=4,
+             markerfacecolor='gray',
+             markeredgecolor='gray')
+    plt.plot(drone[0, 0], drone[0, 1], 'kx',
+             markersize=10,
+             mew=4)
+    plt.plot(drone[-1, 0], drone[-1, 1], 'kv',
+             markersize=10)
+
+    # Terminals
+    plt.plot(user[:, 0], user[:, 1], 'r*',
+             markersize=10)
+    plt.plot(bs[:, 0], bs[:, 1], 'go',
+             markersize=10)
+
+    # Cosmetics
+    plt.title("Flight trajectory")
+    plt.xlabel("x [m]")
+    plt.ylabel("y [m]")
+    plt.grid(linestyle=':', linewidth=1, color='gainsboro')
     plt.axis('equal')
 
     plt.show()
 
 
+def args():
+    """Handle arguments for the main function."""
+
+    if docopt(__doc__)['<PATH>']:
+        path = docopt(__doc__)['<PATH>']
+    else:
+        path = "./flight.log"
+
+    return [path]
+
+
 if __name__ == '__main__':
-    main()
+    main(*args())
