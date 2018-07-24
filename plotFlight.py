@@ -4,23 +4,25 @@
 """Plot the trajectory of a flight simulation.
 
 Usage:
-    plotFlight.py [<PATH>]
+    plotFlight.py [<PATH>] [-o DIR]
 
 Arguments:
-    <PATH>          Path to flight logs [default: ./flight.log].
+    <PATH>          Path to flight logs [default: /tmp/result/flight.csv].
 
 Options:
+    -o DIR          Output directory [default: /tmp/result/png].
     -h, --help
 """
 import csv
 import matplotlib.pyplot as plt
 import numpy as np
 from docopt import docopt
+import os
 
 
-def main(path):
+def main(csvPath, resultDir):
 
-    with open(path) as f:
+    with open(csvPath) as f:
         reader = csv.reader(f)
         # next(reader) # skip header
         data = np.array([r for r in reader])
@@ -54,18 +56,25 @@ def main(path):
     plt.grid(linestyle=':', linewidth=1, color='gainsboro')
     plt.axis('equal')
 
-    plt.show()
+    figureName = os.path.join(resultDir, "flight.png")
+    plt.savefig(figureName, bbox_inches='tight')
+
+    # plt.show()
 
 
 def args():
     """Handle arguments for the main function."""
 
     if docopt(__doc__)['<PATH>']:
-        path = docopt(__doc__)['<PATH>']
+        csvPath = docopt(__doc__)['<PATH>']
     else:
-        path = "./flight.log"
+        csvPath = "/tmp/result/flight.csv"
 
-    return [path]
+    resultDir = docopt(__doc__)['-o']
+    if not os.path.exists(resultDir):
+        os.makedirs(resultDir)
+
+    return [csvPath, resultDir]
 
 
 if __name__ == '__main__':

@@ -18,40 +18,41 @@ as a map of the environment and returns a complete set of information
 describing both the UAV and the environment at every moment.
 
 Usage:
-    simulator.py
+    simulator.py [-i ITER] [-o DIR]
 
 Arguments:
 
 Options:
+    -i ITER         Iterations [default: 12].
+    -o DIR          Output directory [default: /tmp/result].
     -h, --help
 """
 import logging
-import tempfile
 import math
 from rayTracingWrapper import CloudRT, PathLoss
 import numpy as np
+from docopt import docopt
+import os
 
-# TODO make it clean
-RESULT_DIR = tempfile.mkdtemp()
-RESULT_DIR = "/tmp/result"
-LOG_FILE = "flight.log"
+
+LOG_FILE = "flight.csv"
 
 logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 
 
-def main(f):
+def main(f, iterations, resultDir):
 
     user = baseStation(325, 250, 2, 0, 0, 0)
     bs = baseStation(96, 69, 200, 0, 0, 0)
-    env = EnvironmentRF(bs, user)
+    env = EnvironmentRF(resultDir, bs, user)
 
     drone = Drone(176, 290, 100, 0, 0, 0,
                   # antOffset=np.deg2rad(range(0, 360, 20)),
                   routineAlgo="locate",
                   AoAAlgo="weighted-rss")
 
-    for i in range(1, 12):
+    for i in range(1, iterations):
         LOGGER.debug("Iterration %d", i)
         drone.routine(env)
         # FIXME next iteration of drone info are logged
@@ -72,9 +73,15 @@ def log(f, drone, user, bs):
 def args():
     """Handle arguments for the main function."""
 
-    f = open(LOG_FILE, 'w')
+    iterations = int(docopt(__doc__)['-i'])
+    resultDir = docopt(__doc__)['-o']
+    if not os.path.exists(resultDir):
+        os.makedirs(resultDir)
 
-    return [f]
+    logFilePath = os.path.join(resultDir, LOG_FILE)
+    f = open(logFilePath, 'w')
+
+    return [f, iterations, resultDir]
 
 
 class Antenna(object):
@@ -130,12 +137,12 @@ class baseStation(Terminal):
 
 class EnvironmentRF(object):
     """docstring for EnvironmentRF"""
-    def __init__(self, bs, user):
+    def __init__(self, resultDir, bs, user):
         self.bs = bs
         self.user = user
 
         # self.rt = PathLzoss()
-        self.rt = CloudRT(RESULT_DIR, quiteMode=True)
+        self.rt = CloudRT(resultDir, quiteMode=True)
 
     def scan(self, drone, tx):
         """Compute received signal on drone antennas for a given situation."""
