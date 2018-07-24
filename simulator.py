@@ -46,10 +46,10 @@ def main(f):
     bs = baseStation(96, 69, 200, 0, 0, 0)
     env = EnvironmentRF(bs, user)
 
-    # antOffset = np.deg2rad(range(0, 360, 20))
-    drone = Drone(100, 300, 100, 0, 0, 0,
+    drone = Drone(176, 290, 100, 0, 0, 0,
+                  # antOffset=np.deg2rad(range(0, 360, 20)),
                   routineAlgo="locate",
-                  AoAAlgo="max-rss")
+                  AoAAlgo="weighted-rss")
 
     for i in range(1, 12):
         LOGGER.debug("Iterration %d", i)
@@ -253,6 +253,14 @@ class Drone(Terminal):
 
         phi1, rss1 = self.antOffset[rss[0][0]], rss[0][1]
         phi2, rss2 = self.antOffset[rss[1][0]], rss[1][1]
+
+        # When phi1 and phi2 are separated by more than 180° their mean is on
+        # the wrong side of the circle
+        if max([phi1, phi2]) - min([phi1, phi2]) > np.deg2rad(180):
+            if phi1 > phi2:
+                phi2 += np.deg2rad(360)
+            else:
+                phi1 += np.deg2rad(360)
 
         return (rss1 * phi1 + rss2 * phi2) / (rss1 + rss2)
 
