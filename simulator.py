@@ -29,7 +29,7 @@ Options:
 """
 import logging
 import math
-from rayTracingWrapper import CloudRT, PathLoss
+from rayTracingWrapper import CloudRT
 import numpy as np
 from docopt import docopt
 import os
