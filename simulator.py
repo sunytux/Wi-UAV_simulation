@@ -43,31 +43,21 @@ LOGGER = logging.getLogger(__name__)
 
 def main(f, iterations, resultDir):
 
-    user = baseStation(325, 250, 2, 0, 0, 0)
-    bs = baseStation(96, 69, 200, 0, 0, 0)
-    env = EnvironmentRF(resultDir, bs, user)
-
     drone = Drone(176, 290, 100, 0, 0, 0,
                   # antOffset=np.deg2rad(range(0, 360, 20)),
                   routineAlgo="locate",
                   AoAAlgo="weighted-rss")
 
+    user = baseStation(325, 250, 2, 0, 0, 0)
+    bs = baseStation(96, 69, 200, 0, 0, 0)
+    env = EnvironmentRF(f, resultDir, bs, user, drone)
+
     for i in range(1, iterations):
         LOGGER.debug("Iterration %d", i)
         drone.routine(env)
-        # FIXME next iteration of drone info are logged
-        log(f, drone, env.user, env.bs)
+        env.incTime()
 
     f.close()
-
-
-def log(f, drone, user, bs):
-    line = [drone.x, drone.y, user.x, user.y, bs.x, bs.y]
-    line += [float(a.rss) for a in drone.ant]
-    lineFmt = ",".join(["{:.16f}"] * len(line)) + "\n"
-    line = lineFmt.format(*line)
-
-    f.write(line)
 
 
 def args():
@@ -137,12 +127,21 @@ class baseStation(Terminal):
 
 class EnvironmentRF(object):
     """docstring for EnvironmentRF"""
-    def __init__(self, resultDir, bs, user):
+    def __init__(self, logFile, resultDir, bs, user, drone):
+        self.logFile = logFile
+
         self.bs = bs
         self.user = user
 
         # self.rt = PathLzoss()
         self.rt = CloudRT(resultDir, quiteMode=True)
+
+        self.time = 0
+
+        self._initLog(drone)
+
+    def incTime(self):
+        self.time += 1
 
     def scan(self, drone, tx):
         """Compute received signal on drone antennas for a given situation."""
@@ -152,6 +151,8 @@ class EnvironmentRF(object):
             tx = self.bs
         elif tx == "user":
             tx = self.user
+
+        simIdxs = []
 
         self.rt.setTxPose(tx.x, tx.y, tx.z,
                           tx.u + tx.ant[0].u,
@@ -164,8 +165,46 @@ class EnvironmentRF(object):
                               drone.v + drone.ant[i].v,
                               drone.w + drone.ant[i].w)
 
-            IQ = self.rt.simulate()
+            simId = "{:d}-{:d}".format(self.time, i)
+            IQ = self.rt.simulate(simId)
             drone.ant[i].setIQ(*IQ)
+
+            simIdxs.append(i)
+
+        self._log(drone, simIdxs)
+
+    def _initLog(self, drone):
+        header = [
+            "time", "simIdxs",
+            "drone.x", "drone.y", "drone.z",
+            "drone.u", "drone.v", "drone.w",
+            "bs.x", "bs.y", "bs.z",
+            "bs.u", "bs.v", "bs.w",
+            "user.x", "user.y", "user.z",
+            "user.u", "user.v", "user.w",
+        ]
+        header += ["ant." + str(i) for i in range(len(drone.ant))]
+        header = ",".join(header) + '\n'
+
+        self.logFile.write(header)
+
+    def _log(self, drone, simIdxs):
+        simIdxs = "{}-{}".format(simIdxs[0], simIdxs[-1])
+        rss = [a.rss for a in drone.ant]
+        row = [
+            self.time, simIdxs,
+            drone.x, drone.y, drone.z,
+            drone.u, drone.v, drone.w,
+            self.bs.x, self.bs.y, self.bs.z,
+            self.bs.u, self.bs.v, self.bs.w,
+            self.user.x, self.user.y, self.user.z,
+            self.user.u, self.user.v, self.user.w,
+        ]
+        row += rss
+
+        lineFmt = "{:d},{:s}" + ",{:.16f}" * (len(row) - 2) + '\n'
+
+        self.logFile.write(lineFmt.format(*row))
 
 
 class Drone(Terminal):

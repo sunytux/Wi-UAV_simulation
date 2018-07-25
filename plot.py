@@ -23,17 +23,17 @@ import os
 
 def main(csvPath, resultDir):
 
-    data = readData(csvPath)
+    time, drone, bs, user, rss = readData(csvPath)
 
     fig1 = plt.figure()
-    plotFlight(fig1, data)
+    plotFlight(fig1, drone, user, bs)
 
     figureName = os.path.join(resultDir, "flight.png")
     plt.savefig(figureName, bbox_inches='tight')
 
-    for idx in range(len(data)):
+    for idx in range(len(rss)):
         fig = plt.figure()
-        plotRadiationPattern(fig, data, idx)
+        plotRadiationPattern(fig, drone, user, bs, rss, idx)
 
         figureName = os.path.join(resultDir, "flight-{}.png".format(idx))
         fig.savefig(figureName, bbox_inches='tight')
@@ -58,19 +58,29 @@ def args():
 def readData(csvPath):
     with open(csvPath) as f:
         reader = csv.reader(f)
-        # next(reader) # skip header
-        data = np.array([map(float, r) for r in reader])
 
-    return data
+        header = next(reader)
+        data = np.array([r for r in reader])
+
+    # Find the indexes for each categories
+    timeIdx = header.index('time')
+    droneIdxs = [i for i, x in enumerate(header) if 'drone' in x]
+    bsIdxs = [i for i, x in enumerate(header) if 'bs' in x]
+    userIdxs = [i for i, x in enumerate(header) if 'user' in x]
+    rssIdxs = [i for i, x in enumerate(header) if 'ant' in x]
+
+    # Split data in each categories
+    time = data[:, timeIdx]
+    drone = np.array([map(float, r) for r in data[:, droneIdxs]])
+    bs = np.array([map(float, r) for r in data[:, bsIdxs]])
+    user = np.array([map(float, r) for r in data[:, userIdxs]])
+    rss = np.array([map(float, r) for r in data[:, rssIdxs]])
+
+    return time, drone, bs, user, rss
 
 
-def plotFlight(fig, data):
-    # Data manipulation
-    drone = data[:, :2]
-    user = data[:, 2:4]
-    bs = data[:, 4:6]
+def plotFlight(fig, drone, user, bs):
 
-    # Plots
     fig.clear()
     # Drone trajectory
     plt.plot(drone[:, 0], drone[:, 1], 'o-',
@@ -98,13 +108,13 @@ def plotFlight(fig, data):
     plt.axis('equal')
 
 
-def plotRadiationPattern(fig, data, idx):
+def plotRadiationPattern(fig, drone, user, bs, rss, idx):
     # Data manipulation
-    droneIdx = data[idx, :2]
-    userIdx = data[idx, 2:4]
-    bsIdx = data[idx, 4:6]
+    droneIdx = drone[idx, :]
+    userIdx = user[idx, :]
+    bsIdx = bs[idx, :]
 
-    rssIdx = np.append(data[idx, 6:], data[idx, 6])
+    rssIdx = np.append(rss[idx, :], rss[idx, 0])
     rssIdx /= max(rssIdx)
 
     angles = np.linspace(0.0, 2 * np.pi, num=len(rssIdx))

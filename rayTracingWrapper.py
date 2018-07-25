@@ -43,14 +43,12 @@ class CloudRT():
         self.setTxPose(0, 0, 0, 0, 0, 0)
         self.setRxPose(0, 0, 0, 0, 0, 0)
 
-        self.simIdx = 0
-
-    def simulate(self):
+    def simulate(self, simId):
         self.conf, CTF_Re, CTF_Im = self.eng.simulate(self.conf,
                                                       self.resultDir,
-                                                      self.simIdx,
+                                                      simId,
                                                       nargout=3, **self.opt)
-        self.simIdx += 1
+
         return CTF_Re, CTF_Im
 
     def setTxPose(self, x, y, z, u, v, w):
