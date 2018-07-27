@@ -23,19 +23,31 @@ import os
 
 def main(csvPath, resultDir):
 
-    time, drone, bs, user, rss = readData(csvPath)
+    time, sim, drone, users, rss = readData(csvPath)
+
+    # TODO find better way
+    for user in range(len(users)):
+        d = os.path.join(resultDir, "user-" + str(user))
+        if not os.path.exists(d):
+            os.makedirs(d)
 
     fig1 = plt.figure()
-    plotFlight(fig1, drone, user, bs)
-
+    plotFlight(fig1, drone, users)
     figureName = os.path.join(resultDir, "flight.png")
+    plt.savefig(figureName, bbox_inches='tight')
+
+    fig2 = plt.figure()
+    plotMaxRss(fig2, time, sim, users, rss)
+    figureName = os.path.join(resultDir, "maxRss.png")
     plt.savefig(figureName, bbox_inches='tight')
 
     for idx in range(len(rss)):
         fig = plt.figure()
-        plotRadiationPattern(fig, drone, user, bs, rss, idx)
+        userIdx = getUserId(sim[idx])
+        plotRadiationPattern(fig, drone, users, userIdx, rss, idx)
 
-        figureName = os.path.join(resultDir, "flight-{}.png".format(idx))
+        figureName = os.path.join(resultDir, "user-" + str(userIdx),
+                                  "rss-time-{}.png".format(time[idx]))
         fig.savefig(figureName, bbox_inches='tight')
         plt.close('all')
 
@@ -62,24 +74,37 @@ def readData(csvPath):
         header = next(reader)
         data = np.array([r for r in reader])
 
+    def columnThatContains(s):
+        return [i for i, x in enumerate(header) if s in x]
+
+    def selectAndConvertColumn(col):
+        return np.array([map(float, r) for r in data[:, col]])
+
     # Find the indexes for each categories
-    timeIdx = header.index('time')
-    droneIdxs = [i for i, x in enumerate(header) if 'drone' in x]
-    bsIdxs = [i for i, x in enumerate(header) if 'bs' in x]
-    userIdxs = [i for i, x in enumerate(header) if 'user' in x]
-    rssIdxs = [i for i, x in enumerate(header) if 'ant' in x]
+    timeCol = header.index('time')
+    simCol = header.index('simIdxs')
+    droneCol = columnThatContains('drone')
+    rssCol = columnThatContains('ant')
 
     # Split data in each categories
-    time = data[:, timeIdx]
-    drone = np.array([map(float, r) for r in data[:, droneIdxs]])
-    bs = np.array([map(float, r) for r in data[:, bsIdxs]])
-    user = np.array([map(float, r) for r in data[:, userIdxs]])
-    rss = np.array([map(float, r) for r in data[:, rssIdxs]])
+    time = np.array(map(int, data[:, timeCol]))
+    sim = data[:, simCol]
+    drone = selectAndConvertColumn(droneCol)
+    rss = selectAndConvertColumn(rssCol)
 
-    return time, drone, bs, user, rss
+    users = []
+    for i in range(len(columnThatContains('user-')) / 6):
+        thisUserCol = columnThatContains('user-' + str(i))
+        users.append(selectAndConvertColumn(thisUserCol))
+
+    return time, sim, drone, users, rss
 
 
-def plotFlight(fig, drone, user, bs):
+def getUserId(simId):
+    return int(simId.split('-')[0].strip('u'))
+
+
+def plotFlight(fig, drone, users):
 
     fig.clear()
     # Drone trajectory
@@ -95,10 +120,12 @@ def plotFlight(fig, drone, user, bs):
              markersize=10)
 
     # Terminals
-    plt.plot(user[:, 0], user[:, 1], 'r*',
-             markersize=10)
-    plt.plot(bs[:, 0], bs[:, 1], 'go',
-             markersize=10)
+    for i in range(len(users)):
+        user = users[i]
+
+        opt = 'go' if i == 0 else 'r*'
+        plt.plot(user[:, 0], user[:, 1], opt,
+                 markersize=10)
 
     # Cosmetics
     plt.title("Flight trajectory")
@@ -106,13 +133,13 @@ def plotFlight(fig, drone, user, bs):
     plt.ylabel("y [m]")
     plt.grid(linestyle=':', linewidth=1, color='gainsboro')
     plt.axis('equal')
+    plt.axis([0, 650, 0, 500])
 
 
-def plotRadiationPattern(fig, drone, user, bs, rss, idx):
+def plotRadiationPattern(fig, drone, users, userID, rss, idx):
     # Data manipulation
     droneIdx = drone[idx, :]
-    userIdx = user[idx, :]
-    bsIdx = bs[idx, :]
+    userIdx = users[userID][idx, :]
 
     rssIdx = np.append(rss[idx, :], rss[idx, 0])
     rssIdx /= max(rssIdx)
@@ -121,8 +148,6 @@ def plotRadiationPattern(fig, drone, user, bs, rss, idx):
 
     userAngle = math.atan2(userIdx[1] - droneIdx[1],
                            userIdx[0] - droneIdx[0])
-    bsAngle = math.atan2(bsIdx[1] - droneIdx[1],
-                         bsIdx[0] - droneIdx[0])
 
     # Plots
     fig.clear()
@@ -141,15 +166,41 @@ def plotRadiationPattern(fig, drone, user, bs, rss, idx):
              markersize=10)
 
     # Terminals
-    ax1.plot(userAngle, max(rssIdx) * 1.2, 'r*',
-             markersize=10)
-    ax1.plot(bsAngle, max(rssIdx) * 1.2, 'go',
+    opt = 'go' if userID == 0 else 'r*'
+    ax1.plot(userAngle, max(rssIdx) * 1.2, opt,
              markersize=10)
 
     # Cosmetic
     ax1.set_ylim(0, 1.3)
     ax1.set_yticks([1])
     plt.grid(linestyle=':', linewidth=1, color='gainsboro')
+
+
+def plotMaxRss(fig, time, sim, users, rss):
+
+    iterations = np.unique(time)
+    maxRss = np.zeros((len(iterations), len(users)))
+    for idx in range(len(time)):
+        thisMaxRss_dB = 10 * np.log10(max(rss[idx, :]))
+        thisUser = getUserId(sim[idx])
+        thisTime = time[idx]
+
+        maxRss[int(thisTime), thisUser] = thisMaxRss_dB
+
+    # Plots
+    fig.clear()
+    for usr in range(len(users)):
+        if sum(maxRss[:, usr]) != 0:
+            plt.plot(iterations, maxRss[:, usr], 'o-',
+                     label='User-{:d}'.format(usr))
+
+    # Cosmetics
+    plt.title("Maximum measured Rss")
+    plt.xlabel("iterations [/]")
+    plt.ylabel("Measured Rss [dB]")
+    plt.xticks(np.arange(iterations[0], iterations[-1] + 1, 1.0))
+    plt.grid(linestyle=':', linewidth=1, color='gainsboro')
+    plt.legend()
 
 
 if __name__ == '__main__':

@@ -43,14 +43,19 @@ LOGGER = logging.getLogger(__name__)
 
 def main(f, iterations, resultDir):
 
-    drone = Drone(176, 290, 100, 0, 0, 0,
-                  # antOffset=np.deg2rad(range(0, 360, 20)),
-                  routineAlgo="locate",
-                  AoAAlgo="weighted-rss")
+    terminals = [
+        baseStation(96, 69, 200, 0, 0, 0),  # Base-station
+        baseStation(325, 250, 2, 0, 0, 0),  # User 1
+        baseStation(425, 150, 2, 0, 0, 0),  # User 2
+        baseStation(225, 350, 2, 0, 0, 0),
+        baseStation(225, 50, 2, 0, 0, 0)
+    ]
 
-    user = baseStation(325, 250, 2, 0, 0, 0)
-    bs = baseStation(96, 69, 200, 0, 0, 0)
-    env = EnvironmentRF(f, resultDir, bs, user, drone)
+    drone = Drone(176, 290, 100, 0, 0, 0, len(terminals),
+                  # antOffset=np.deg2rad(range(0, 360, 20)),
+                  routineAlgo="optimize",
+                  AoAAlgo="max-rss")
+    env = EnvironmentRF(f, resultDir, terminals, drone)
 
     for i in range(1, iterations):
         LOGGER.debug("Iterration %d", i)
@@ -85,15 +90,13 @@ class Antenna(object):
 
     def setIQ(self, Re, Im):
         if Re == 0 and Im == 0:
-            LOGGER.warning("Re = 0 and Im = 0")
+            LOGGER.warn("Computed IQ are too low; Re = Im = 1e-12.")
+            Re = Im = 1e-12
         self.Im = Im
         self.Re = Re
 
     @property
     def rss(self):
-        # TODO clean that
-        if self.Re == 0 and self.Im == 0:
-            return -999
         return self.Im**2 + self.Re**2
 
     @rss.setter
@@ -127,13 +130,11 @@ class baseStation(Terminal):
 
 class EnvironmentRF(object):
     """docstring for EnvironmentRF"""
-    def __init__(self, logFile, resultDir, bs, user, drone):
+    def __init__(self, logFile, resultDir, terminals, drone):
         self.logFile = logFile
 
-        self.bs = bs
-        self.user = user
+        self.terminals = terminals
 
-        # self.rt = PathLzoss()
         self.rt = CloudRT(resultDir, quiteMode=True)
 
         self.time = 0
@@ -143,16 +144,10 @@ class EnvironmentRF(object):
     def incTime(self):
         self.time += 1
 
-    def scan(self, drone, tx):
+    def scan(self, drone, txIdx):
         """Compute received signal on drone antennas for a given situation."""
 
-        # TODO find cleaner way
-        if tx == "bs":
-            tx = self.bs
-        elif tx == "user":
-            tx = self.user
-
-        simIdxs = []
+        tx = self.terminals[txIdx]
 
         self.rt.setTxPose(tx.x, tx.y, tx.z,
                           tx.u + tx.ant[0].u,
@@ -165,41 +160,42 @@ class EnvironmentRF(object):
                               drone.v + drone.ant[i].v,
                               drone.w + drone.ant[i].w)
 
-            simId = "{:d}-{:d}".format(self.time, i)
+            simId = "u{:02d}-t{:04d}-ant{:02d}".format(txIdx, self.time, i)
             IQ = self.rt.simulate(simId)
             drone.ant[i].setIQ(*IQ)
 
-            simIdxs.append(i)
+        simIds = "u{:02d}-t{:04d}-antXX".format(txIdx, self.time)
 
-        self._log(drone, simIdxs)
+        self._log(drone, simIds)
 
     def _initLog(self, drone):
+        def expand(t):
+            return [t + ".x", t + ".y", t + ".z", t + ".u", t + ".v", t + ".w"]
+
         header = [
             "time", "simIdxs",
-            "drone.x", "drone.y", "drone.z",
-            "drone.u", "drone.v", "drone.w",
-            "bs.x", "bs.y", "bs.z",
-            "bs.u", "bs.v", "bs.w",
-            "user.x", "user.y", "user.z",
-            "user.u", "user.v", "user.w",
         ]
+        header += expand("drone")
+        for i in range(len(self.terminals)):
+            header += expand("user-" + str(i))
         header += ["ant." + str(i) for i in range(len(drone.ant))]
+
         header = ",".join(header) + '\n'
 
         self.logFile.write(header)
 
     def _log(self, drone, simIdxs):
-        simIdxs = "{}-{}".format(simIdxs[0], simIdxs[-1])
         rss = [a.rss for a in drone.ant]
+
+        def expand(t):
+            return [t.x, t.y, t.z, t.u, t.v, t.w]
+
         row = [
             self.time, simIdxs,
-            drone.x, drone.y, drone.z,
-            drone.u, drone.v, drone.w,
-            self.bs.x, self.bs.y, self.bs.z,
-            self.bs.u, self.bs.v, self.bs.w,
-            self.user.x, self.user.y, self.user.z,
-            self.user.u, self.user.v, self.user.w,
         ]
+        row += expand(drone)
+        for t in self.terminals:
+            row += expand(t)
         row += rss
 
         lineFmt = "{:d},{:s}" + ",{:.16f}" * (len(row) - 2) + '\n'
@@ -211,17 +207,21 @@ class Drone(Terminal):
     """docstring for Drone"""
     DEFAULT_ANTENNAS_OFFSET = np.deg2rad([0, 90, 180, 270])
 
-    def __init__(self, x, y, z, u, v, w, antOffset=DEFAULT_ANTENNAS_OFFSET,
-                 routineAlgo="locate", AoAAlgo="max-rss"):
+    def __init__(self, x, y, z, u, v, w, nbUsers,
+                 antOffset=DEFAULT_ANTENNAS_OFFSET,
+                 routineAlgo="locate",
+                 AoAAlgo="weighted-rss"):
         Terminal.__init__(self, x, y, z, u, v, w)
 
+        self.nbUsers = nbUsers
         self.antOffset = antOffset
 
         self.routineAlgo = routineAlgo
         self.AoAAlgo = AoAAlgo
 
         for offset in self.antOffset:
-            self._addAntenna(np.deg2rad(90) + offset, np.deg2rad(90), 0)
+            # TODO check 90 + 45
+            self._addAntenna(np.deg2rad(90) + offset, np.deg2rad(90 + 45), 0)
 
     def routine(self, env):
         if self.routineAlgo == "locate":
@@ -230,8 +230,10 @@ class Drone(Terminal):
             self.routine_optimize(env)
 
     def routine_optimize(self, env):
+        # TODO add support for multiple user
+
         # Drone-user
-        env.scan(self, "user")
+        env.scan(self, 1)
         AoAUser = self.getAoA()
         maxRssUser = max([a.rss for a in self.ant])
 
@@ -239,7 +241,7 @@ class Drone(Terminal):
         LOGGER.debug('User to drone: rss = ' + str(np.rad2deg(maxRssUser)))
 
         # Drone-base-station
-        env.scan(self, "bs")
+        env.scan(self, 0)
         AoABs = self.getAoA()
         maxRssBs = max([a.rss for a in self.ant])
 
@@ -257,9 +259,10 @@ class Drone(Terminal):
         self.y += COEF * d[1]
 
     def routine_locate(self, env):
+        # TODO add support for choosing which user to locate
 
         # Drone-user
-        env.scan(self, "user")
+        env.scan(self, 1)
         AoA = self.getAoA()
         maxRss = max([a.rss for a in self.ant])
 

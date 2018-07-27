@@ -37,7 +37,8 @@ function [ conf ] = initConf(resultDir)
 
     %% Map & Material Configuration
     %%% Scenario (Map)
-    conf.scenario.load(fullfile(ConfigureClass.databasePath, 'scenario', 'Plank.json'));
+    % conf.scenario.load(fullfile(ConfigureClass.databasePath, 'scenario', 'Plank.json'));
+    conf.scenario.load(fullfile(ConfigureClass.databasePath, 'scenario', 'subrealcity.json'));
 
     %%% Material
     conf.material.setFrequency(f);
