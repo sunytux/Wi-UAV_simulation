@@ -29,10 +29,7 @@ Options:
 """
 import logging
 import math
-from rayTracingWrapper import CloudRT
 import numpy as np
-from docopt import docopt
-import os
 
 
 LOG_FILE = "flight.csv"
@@ -41,42 +38,44 @@ logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 
 
-def main(f, iterations, resultDir):
+class Logs(object):
+    """docstring for Logs"""
+    def __init__(self, logFile, drone, terminals):
+        self.logFile = logFile
+        header = self._makeHeader(drone, terminals)
+        self.logFile.write(header)
 
-    terminals = [
-        baseStation(96, 69, 200, 0, 0, 0),  # Base-station
-        baseStation(325, 250, 2, 0, 0, 0),  # User 1
-        baseStation(425, 150, 2, 0, 0, 0),  # User 2
-        baseStation(225, 350, 2, 0, 0, 0),
-        baseStation(225, 50, 2, 0, 0, 0)
-    ]
+    def _makeHeader(self, drone, terminals):
+        def expand(t):
+            return [t + ".x", t + ".y", t + ".z", t + ".u", t + ".v", t + ".w"]
 
-    drone = Drone(176, 290, 100, 0, 0, 0, len(terminals),
-                  # antOffset=np.deg2rad(range(0, 360, 20)),
-                  routineAlgo="optimize",
-                  AoAAlgo="max-rss")
-    env = EnvironmentRF(f, resultDir, terminals, drone)
+        header = [
+            "time", "simIdxs",
+        ]
+        header += expand("drone")
+        for i in range(len(terminals)):
+            header += expand("user-" + str(i))
+        header += ["ant." + str(i) for i in range(len(drone.ant))]
 
-    for i in range(1, iterations):
-        LOGGER.debug("Iterration %d", i)
-        drone.routine(env)
-        env.incTime()
+        return ",".join(header) + '\n'
 
-    f.close()
+    def save(self, time, simIdxs, drone, terminals):
+        rss = [a.rss for a in drone.ant]
 
+        def expand(t):
+            return [t.x, t.y, t.z, t.u, t.v, t.w]
 
-def args():
-    """Handle arguments for the main function."""
+        row = [
+            time, simIdxs,
+        ]
+        row += expand(drone)
+        for t in terminals:
+            row += expand(t)
+        row += rss
 
-    iterations = int(docopt(__doc__)['-i'])
-    resultDir = docopt(__doc__)['-o']
-    if not os.path.exists(resultDir):
-        os.makedirs(resultDir)
+        lineFmt = "{:d},{:s}" + ",{:.16f}" * (len(row) - 2) + '\n'
 
-    logFilePath = os.path.join(resultDir, LOG_FILE)
-    f = open(logFilePath, 'w')
-
-    return [f, iterations, resultDir]
+        self.logFile.write(lineFmt.format(*row))
 
 
 class Antenna(object):
@@ -130,16 +129,17 @@ class baseStation(Terminal):
 
 class EnvironmentRF(object):
     """docstring for EnvironmentRF"""
-    def __init__(self, logFile, resultDir, terminals, drone):
+    def __init__(self, logFile, resultDir, rt, log, terminals, drone):
         self.logFile = logFile
 
         self.terminals = terminals
 
-        self.rt = CloudRT(resultDir, quiteMode=True)
+        self.rt = rt
+        self.log = log
 
         self.time = 0
 
-        self._initLog(drone)
+        # self._initLog(drone)
 
     def incTime(self):
         self.time += 1
@@ -166,41 +166,7 @@ class EnvironmentRF(object):
 
         simIds = "u{:02d}-t{:04d}-antXX".format(txIdx, self.time)
 
-        self._log(drone, simIds)
-
-    def _initLog(self, drone):
-        def expand(t):
-            return [t + ".x", t + ".y", t + ".z", t + ".u", t + ".v", t + ".w"]
-
-        header = [
-            "time", "simIdxs",
-        ]
-        header += expand("drone")
-        for i in range(len(self.terminals)):
-            header += expand("user-" + str(i))
-        header += ["ant." + str(i) for i in range(len(drone.ant))]
-
-        header = ",".join(header) + '\n'
-
-        self.logFile.write(header)
-
-    def _log(self, drone, simIdxs):
-        rss = [a.rss for a in drone.ant]
-
-        def expand(t):
-            return [t.x, t.y, t.z, t.u, t.v, t.w]
-
-        row = [
-            self.time, simIdxs,
-        ]
-        row += expand(drone)
-        for t in self.terminals:
-            row += expand(t)
-        row += rss
-
-        lineFmt = "{:d},{:s}" + ",{:.16f}" * (len(row) - 2) + '\n'
-
-        self.logFile.write(lineFmt.format(*row))
+        self.log.save(self.time, simIds, drone, self.terminals)
 
 
 class Drone(Terminal):
@@ -312,7 +278,3 @@ class Drone(Terminal):
                 phi1 += np.deg2rad(360)
 
         return (rss1 * phi1 + rss2 * phi2) / (rss1 + rss2)
-
-
-if __name__ == '__main__':
-    main(*args())

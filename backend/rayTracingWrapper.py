@@ -3,7 +3,6 @@
 
 """Wrapper for CloudRT ray tracing matlab simulator.
 
-In the context of 1 drone, 1 User
 Warning: This is written in python 2.7 for matlab engine compatibility (beurk).
 
 Usage:
@@ -16,17 +15,14 @@ Options:
 """
 import matlab.engine
 import os
-import tempfile
 import StringIO
-
-# TODO find a cleaner way to handle directories
-RESULT_DIR = tempfile.mkdtemp()
 
 
 class CloudRT():
     """docstring for CloudRT wrapper"""
 
-    CLOUDRT_DIR = os.path.join(os.getcwd(), "CloudRT_app")
+    CLOUDRT_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                               "CloudRT_app")
 
     def __init__(self, resultDir, quiteMode=False):
         self.resultDir = resultDir
@@ -58,22 +54,3 @@ class CloudRT():
     def setRxPose(self, x, y, z, u, v, w):
         self.conf = self.eng.setRxPose(self.conf, self.resultDir,
                                        x, y, z, u, v, w, **self.opt)
-
-
-def main():
-
-    rt = CloudRT(RESULT_DIR)
-
-    rt.setTxPose(300, 100, 40, 0, 180, 0)
-
-    CTF_Im = rt.simulate()
-    print("The computed CTF_Im", CTF_Im)
-
-    rt.setTxPose(50, 200, 40, 0, 180, 0)
-
-    CTF_Im = rt.simulate()
-    print("The computed CTF_Im", CTF_Im)
-
-
-if __name__ == '__main__':
-    main()
