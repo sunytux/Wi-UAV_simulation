@@ -1,24 +1,10 @@
 #! /usr/bin/python2.7 -u
 # -*- coding: utf-8 -*-
 
-"""Wireless UAV simulator.
-
-This script aims at validating UAV trajectory planner in the context of
-wireless UAV networks by computing several channel metrics along its path. This
-is done in an iterative manner. At each position, the received signals on the
-four UAV's antennas is simulated with an external Matlab simulator, which is
-then used by the trajectory planner to compute the next UAV position and
-orientation.
-
-# TODO The stop condition is ...
-
-
-It takes as input: user, base-station (BS) and UAV initial conditions as well
-as a map of the environment and returns a complete set of information
-describing both the UAV and the environment at every moment.
+"""TODO
 
 Usage:
-    simTrajectory.py [-i ITER] [-o DIR]
+    scanMap.py [-i ITER] [-o DIR]
 
 Arguments:
 
@@ -46,9 +32,9 @@ def main(logFilePath, resultDir, iterations):
     ]
 
     drone = Drone(176, 290, 100, 0, 0, 0, len(terminals),
-                  # antOffset=np.deg2rad(range(0, 360, 20)),
-                  routineAlgo="optimize",
-                  AoAAlgo="max-rss")
+                  antOffset=np.deg2rad(range(0, 360, 45)),
+                  # AoAAlgo="max-rss",
+                  routineAlgo="scan")
 
     rt = CloudRT(resultDir, quiteMode=True)
     log = Logs(f, drone, terminals)

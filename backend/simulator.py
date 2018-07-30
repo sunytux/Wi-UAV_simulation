@@ -129,22 +129,15 @@ class baseStation(Terminal):
 
 class EnvironmentRF(object):
     """docstring for EnvironmentRF"""
-    def __init__(self, logFile, resultDir, rt, log, terminals, drone):
-        self.logFile = logFile
+    def __init__(self, resultDir, rt, log, terminals, drone):
 
         self.terminals = terminals
+        self.drone = drone
 
         self.rt = rt
         self.log = log
 
-        self.time = 0
-
-        # self._initLog(drone)
-
-    def incTime(self):
-        self.time += 1
-
-    def scan(self, drone, txIdx):
+    def scan(self, time, txIdx):
         """Compute received signal on drone antennas for a given situation."""
 
         tx = self.terminals[txIdx]
@@ -154,19 +147,21 @@ class EnvironmentRF(object):
                           tx.v + tx.ant[0].v,
                           tx.w + tx.ant[0].w)
 
-        for i in range(len(drone.ant)):
-            self.rt.setRxPose(drone.x, drone.y, drone.z,
-                              drone.u + drone.ant[i].u,
-                              drone.v + drone.ant[i].v,
-                              drone.w + drone.ant[i].w)
+        for i in range(len(self.drone.ant)):
+            self.rt.setRxPose(self.drone.x, self.drone.y, self.drone.z,
+                              self.drone.u + self.drone.ant[i].u,
+                              self.drone.v + self.drone.ant[i].v,
+                              self.drone.w + self.drone.ant[i].w)
 
-            simId = "u{:02d}-t{:04d}-ant{:02d}".format(txIdx, self.time, i)
-            IQ = self.rt.simulate(simId)
-            drone.ant[i].setIQ(*IQ)
+            IQ = self.rt.simulate(self.getSimID(txIdx, time, i))
+            self.drone.ant[i].setIQ(*IQ)
 
-        simIds = "u{:02d}-t{:04d}-antXX".format(txIdx, self.time)
+        simIds = self.getSimID(txIdx, time, i)[0:-6]
 
-        self.log.save(self.time, simIds, drone, self.terminals)
+        self.log.save(time, simIds, self.drone, self.terminals)
+
+    def getSimID(self, userIdx, time, antenna):
+        return "u{:02d}-t{:06d}-ant{:02d}".format(userIdx, time, antenna)
 
 
 class Drone(Terminal):
@@ -189,17 +184,24 @@ class Drone(Terminal):
             # TODO check 90 + 45
             self._addAntenna(np.deg2rad(90) + offset, np.deg2rad(90 + 45), 0)
 
-    def routine(self, env):
+    def routine(self, time, env):
         if self.routineAlgo == "locate":
-            self.routine_locate(env)
+            self.routine_locate(time, env)
         elif self.routineAlgo == "optimize":
-            self.routine_optimize(env)
+            self.routine_optimize(time, env)
+        elif self.routineAlgo == "scan":
+            self.routine_scan(time, env)
 
-    def routine_optimize(self, env):
+    def routine_scan(self, time, env):
+        for userIdx in range(self.nbUsers):
+            LOGGER.debug('Scanning user  ' + str(userIdx))
+            env.scan(time, userIdx)
+
+    def routine_optimize(self, time, env):
         # TODO add support for multiple user
 
         # Drone-user
-        env.scan(self, 1)
+        env.scan(time, 1)
         AoAUser = self.getAoA()
         maxRssUser = max([a.rss for a in self.ant])
 
@@ -207,7 +209,7 @@ class Drone(Terminal):
         LOGGER.debug('User to drone: rss = ' + str(np.rad2deg(maxRssUser)))
 
         # Drone-base-station
-        env.scan(self, 0)
+        env.scan(time, 0)
         AoABs = self.getAoA()
         maxRssBs = max([a.rss for a in self.ant])
 
@@ -224,11 +226,11 @@ class Drone(Terminal):
         self.x += COEF * d[0]
         self.y += COEF * d[1]
 
-    def routine_locate(self, env):
+    def routine_locate(self, time, env):
         # TODO add support for choosing which user to locate
 
         # Drone-user
-        env.scan(self, 1)
+        env.scan(time, 1)
         AoA = self.getAoA()
         maxRss = max([a.rss for a in self.ant])
 
