@@ -180,13 +180,13 @@ def plotMaxRss(fig, time, sim, users, rss):
 
     iterations = np.unique(time)
     maxRss = np.zeros((len(iterations), len(users)))
+    minTime = min(time)
     for idx in range(len(time)):
         thisMaxRss_dB = 10 * np.log10(max(rss[idx, :]))
         thisUser = getUserId(sim[idx])
         thisTime = time[idx]
 
-        maxRss[int(thisTime), thisUser] = thisMaxRss_dB
-
+        maxRss[int(thisTime) - minTime, thisUser] = thisMaxRss_dB
     # Plots
     fig.clear()
     for usr in range(len(users)):
