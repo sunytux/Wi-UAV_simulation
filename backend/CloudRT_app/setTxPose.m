@@ -1,8 +1,8 @@
-function [ conf ] = setTxPose(conf, resultDir, x, y, z, u, v, w)
+function [ conf ] = setTxPose(conf, confFile, resultDir, x, y, z, u, v, w)
 %UNTITLED6 Summary of this function goes here
 %   Detailed explanation goes here
     RESULT_DIR = [resultDir, '/result'];
-    CONF_FILE = [resultDir, '/configure.json'];
+    CONF_FILE = confFile;
     
     conf.snapshot.Tx.x = x;
     conf.snapshot.Tx.y = y;

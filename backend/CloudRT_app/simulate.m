@@ -1,8 +1,8 @@
-function [ conf, Re, Im ] = simulate( conf, resultDir, simId)
+function [ conf, Re, Im ] = simulate(conf, confFile, resultDir, simId)
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
     RESULT_DIR = [resultDir, '/result'];
-    CONF_FILE = [resultDir, '/configure.json'];
+    CONF_FILE = confFile;
 
     conf.setOutPutFile(fullfile(RESULT_DIR, [simId, '.mat']));
     conf.save(CONF_FILE);

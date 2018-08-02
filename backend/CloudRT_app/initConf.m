@@ -1,4 +1,4 @@
-function [ conf ] = initConf(resultDir)
+function [ conf ] = initConf(confFile, resultDir, scenario)
 %UNTITLED3 Summary of this function goes here
 %   Detailed explanation goes here
 %     clear;close all;clc;
@@ -9,7 +9,7 @@ function [ conf ] = initConf(resultDir)
     DRONE_IDX = 3; % Tx: index in the Txlist.mat
     USER_IDX = 3; % Rx: index in the Rxlist.mat
 
-    CONF_FILE = [resultDir, '/configure.json'];
+    CONF_FILE = confFile;
 
 
     %% Channel Settings
@@ -38,7 +38,7 @@ function [ conf ] = initConf(resultDir)
     %% Map & Material Configuration
     %%% Scenario (Map)
     % conf.scenario.load(fullfile(ConfigureClass.databasePath, 'scenario', 'Plank.json'));
-    conf.scenario.load(fullfile(ConfigureClass.databasePath, 'scenario', 'subrealcity.json'));
+    conf.scenario.load(fullfile(ConfigureClass.databasePath, 'scenario', scenario));
 
     %%% Material
     conf.material.setFrequency(f);

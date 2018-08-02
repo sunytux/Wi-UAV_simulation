@@ -16,6 +16,7 @@ Options:
 import matlab.engine
 import os
 import StringIO
+import tempfile
 
 
 class CloudRT():
@@ -24,8 +25,9 @@ class CloudRT():
     CLOUDRT_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                "CloudRT_app")
 
-    def __init__(self, resultDir, quiteMode=False):
+    def __init__(self, resultDir, scenario="Plank.json", quiteMode=False):
         self.resultDir = resultDir
+        self.confFile = tempfile.NamedTemporaryFile(suffix='.json').name
 
         self.opt = {}
         if quiteMode:
@@ -34,13 +36,15 @@ class CloudRT():
         self.eng = matlab.engine.start_matlab()
         self.eng.cd(self.CLOUDRT_DIR)
 
-        self.conf = self.eng.initConf(resultDir, **self.opt)
+        self.conf = self.eng.initConf(self.confFile, resultDir,
+                                      scenario, **self.opt)
 
         self.setTxPose(0, 0, 0, 0, 0, 0)
         self.setRxPose(0, 0, 0, 0, 0, 0)
 
     def simulate(self, simId):
         self.conf, CTF_Re, CTF_Im = self.eng.simulate(self.conf,
+                                                      self.confFile,
                                                       self.resultDir,
                                                       simId,
                                                       nargout=3, **self.opt)
@@ -48,9 +52,11 @@ class CloudRT():
         return CTF_Re, CTF_Im
 
     def setTxPose(self, x, y, z, u, v, w):
-        self.conf = self.eng.setTxPose(self.conf, self.resultDir,
+        self.conf = self.eng.setTxPose(self.conf, self.confFile,
+                                       self.resultDir,
                                        x, y, z, u, v, w, **self.opt)
 
     def setRxPose(self, x, y, z, u, v, w):
-        self.conf = self.eng.setRxPose(self.conf, self.resultDir,
+        self.conf = self.eng.setRxPose(self.conf, self.confFile,
+                                       self.resultDir,
                                        x, y, z, u, v, w, **self.opt)
