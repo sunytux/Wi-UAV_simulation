@@ -34,7 +34,6 @@ import numpy as np
 
 LOG_FILE = "flight.csv"
 
-logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 
 

@@ -1,64 +1,71 @@
 #! /usr/bin/python2.7 -u
 # -*- coding: utf-8 -*-
 
-"""TODO
+"""Ground Truth
 
 Usage:
-    scanMap.py [-i ITER] [-o DIR]
+    scanMap.py [-i <INPUT_DIR>] [-o OUTPUT_DIR]
 
 Arguments:
 
 Options:
-    -i ITER         Iterations [default: 12].
-    -o DIR          Output directory [default: /tmp/result].
+    -i INPUT_DIR    Directory with setup files [default: ./input].
+    -o OUTPUT_DIR   Output directory [default: /tmp/result].
     -h, --help
 """
+import logging
 from backend import *
 from docopt import docopt
-
 import os
 
+NB_CORE = 3
 
-def main(logFilePath, resultDir, iterations):
+logging.basicConfig(level=logging.DEBUG)
+LOGGER = logging.getLogger(__name__)
 
-    f = open(logFilePath, 'w')
 
-    terminals = [
-        baseStation(96, 69, 200, 0, 0, 0),  # Base-station
-        baseStation(325, 250, 2, 0, 0, 0),  # User 1
-        baseStation(425, 125, 2, 0, 0, 0),  # User 2
-        baseStation(225, 350, 2, 0, 0, 0),
-        baseStation(225, 50, 2, 0, 0, 0)
-    ]
+def main(inputDir, outputDir):
+    def initUAVSimulator():
 
-    drone = Drone(176, 290, 100, 0, 0, 0, len(terminals),
-                  antOffset=np.deg2rad(range(0, 360, 45)),
-                  # AoAAlgo="max-rss",
-                  routineAlgo="scan")
+        terminals = [
+            baseStation(55, 77, 76, 0, 0, 0),
+            baseStation(325, 250, 1.8, 0, 0, 0),
+            baseStation(425, 125, 1.8, 0, 0, 0),
+            baseStation(225, 350, 1.8, 0, 0, 0),
+            baseStation(225, 50, 1.8, 0, 0, 0),
+        ]
 
-    rt = CloudRT(resultDir, quiteMode=True)
-    log = Logs(f, drone, terminals)
+        drone = Drone(110, 420, 100, 0, 0, 0,
+                      len(terminals),
+                      antOffset=np.deg2rad(range(0, 360, 45)),
+                      routineAlgo="scan",
+                      AoAAlgo="AoA-algo")
 
-    env = EnvironmentRF(resultDir, rt, log, terminals, drone)
+        rt = CloudRT(outputDir, "subrealcity.json", quiteMode=True)
 
-    for time in range(iterations):
-        LOGGER.debug("Iterration %d", time)
-        drone.routine(time, env)
+        f = open(os.path.join(outputDir, "flight.csv"), 'w')
+        log = Logs(f, drone, terminals)
 
-    f.close()
+        env = EnvironmentRF(outputDir, rt, log, terminals, drone)
+
+        return drone, terminals, env, rt, log
+
+    def scan_routine(job, drone, terminals, env, rt, log):
+        drone.x = job["drone"]["x"]
+        drone.y = job["drone"]["y"]
+
+        drone.routine(job["ID"], env)
+
+    parallelize(inputDir, outputDir, NB_CORE, initUAVSimulator, scan_routine)
 
 
 def args():
     """Handle arguments for the main function."""
 
-    iterations = int(docopt(__doc__)['-i'])
-    resultDir = docopt(__doc__)['-o']
-    if not os.path.exists(resultDir):
-        os.makedirs(resultDir)
+    inputDir = docopt(__doc__)['-i']
+    outputDir = docopt(__doc__)['-o']
 
-    logFilePath = os.path.join(resultDir, LOG_FILE)
-
-    return [logFilePath, resultDir, iterations]
+    return [inputDir, outputDir]
 
 
 if __name__ == '__main__':

@@ -18,39 +18,53 @@ as a map of the environment and returns a complete set of information
 describing both the UAV and the environment at every moment.
 
 Usage:
-    simTrajectory.py [-i ITER] [-o DIR]
+    simTrajectory.py [<INPUT_FILE>] [-i ITER] [-o DIR]
 
 Arguments:
 
 Options:
+    <INPUT_FILE>    Path to Json file of the experience [default: ./exp.json].
     -i ITER         Iterations [default: 12].
     -o DIR          Output directory [default: /tmp/result].
     -h, --help
 """
 from backend import *
 from docopt import docopt
-
+import json
 import os
 
 
-def main(logFilePath, resultDir, iterations):
+DEFAULT_INPUT_FILE = "./exp.json"
+DEFAULT_SCENARIO = "subrealcity.json"
+
+logging.basicConfig(level=logging.DEBUG)
+LOGGER = logging.getLogger(__name__)
+
+
+def main(inputFile, logFilePath, resultDir, iterations):
 
     f = open(logFilePath, 'w')
 
-    terminals = [
-        baseStation(96, 69, 200, 0, 0, 0),  # Base-station
-        baseStation(325, 250, 2, 0, 0, 0),  # User 1
-        baseStation(425, 125, 2, 0, 0, 0),  # User 2
-        baseStation(225, 350, 2, 0, 0, 0),
-        baseStation(225, 50, 2, 0, 0, 0)
-    ]
+    exp = readJson(inputFile)
 
-    drone = Drone(176, 290, 100, 0, 0, 0, len(terminals),
+    terminals = []
+    for t in exp['terminals']:
+        terminals.append(baseStation(t["x"], t["y"], t["z"],
+                                     t["u"], t["v"], t["w"]))
+
+    drone = Drone(exp["drone"]["x"], exp["drone"]["y"], exp["drone"]["z"],
+                  exp["drone"]["u"], exp["drone"]["v"], exp["drone"]["w"],
+                  len(terminals),
                   # antOffset=np.deg2rad(range(0, 360, 20)),
-                  routineAlgo="optimize",
-                  AoAAlgo="max-rss")
+                  routineAlgo=exp["routine-algo"],
+                  AoAAlgo=exp["AoA-algo"])
 
-    rt = CloudRT(resultDir, quiteMode=True)
+    if "scenario" in exp:
+        scenario = exp["scenario"]
+    else:
+        scenario = DEFAULT_SCENARIO
+
+    rt = CloudRT(resultDir, scenario, quiteMode=True)
     log = Logs(f, drone, terminals)
 
     env = EnvironmentRF(resultDir, rt, log, terminals, drone)
@@ -62,17 +76,30 @@ def main(logFilePath, resultDir, iterations):
     f.close()
 
 
+def readJson(jsonFile):
+    with open(jsonFile) as f:
+        data = json.load(f)
+
+        return data
+
+
 def args():
     """Handle arguments for the main function."""
 
     iterations = int(docopt(__doc__)['-i'])
+
+    if docopt(__doc__)['<INPUT_FILE>']:
+        inputFile = docopt(__doc__)['<INPUT_FILE>']
+    else:
+        inputFile = DEFAULT_INPUT_FILE
+
     resultDir = docopt(__doc__)['-o']
     if not os.path.exists(resultDir):
         os.makedirs(resultDir)
 
     logFilePath = os.path.join(resultDir, LOG_FILE)
 
-    return [logFilePath, resultDir, iterations]
+    return [inputFile, logFilePath, resultDir, iterations]
 
 
 if __name__ == '__main__':
