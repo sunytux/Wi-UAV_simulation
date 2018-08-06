@@ -6,7 +6,7 @@
 Warning: This is written in python 2.7 for matlab engine compatibility (beurk).
 
 Usage:
-    rayTracingWrapper.py
+    CloudRT.py
 
 Arguments:
 
