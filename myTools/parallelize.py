@@ -5,12 +5,11 @@
 
 """
 import logging
-import json
 import os
 import random
 from multiprocessing import Process
 import time
-
+import utils
 
 LOGGER = logging.getLogger(__name__)
 
@@ -41,6 +40,35 @@ def processWrapper(procID, dirs, initSubFct, subFct):
 
 
 def nextJob(dirs):
+    priorDir = os.path.join(dirs['in'], "prior")
+
+    listOfJobs = [os.path.join(dirs['in'], d) for d in os.listdir(dirs['in']) if d != "prior"]
+
+    if os.path.isdir(priorDir) and len(os.listdir(priorDir)) > 0:
+        listOfJobs = [os.path.join(priorDir, d) for d in os.listdir(priorDir)]
+
+    if len(listOfJobs) == 0:
+        return False
+
+    nextJob = random.choice(listOfJobs)
+    nextJobBasename = os.path.basename(nextJob)
+
+    isBeingProcessed = nextJobBasename in os.listdir(dirs['ongoing'])
+    isAlreadyDone = nextJobBasename in os.listdir(dirs['out'])
+
+    if isBeingProcessed or isAlreadyDone:
+        os.remove(nextJob)
+        nextJob = findNextJob(dirs)
+    else:
+        nextJobProcessPath = os.path.join(dirs['ongoing'], nextJobBasename)
+        os.rename(nextJob, nextJobProcessPath)
+        nextJob = utils.readJson(nextJobProcessPath)
+        nextJob['file'] = nextJobBasename
+
+    return nextJob
+
+
+def nextJob2(dirs):
     jobBaseName = findNextJob(dirs)
 
     if jobBaseName is not False:
@@ -48,7 +76,7 @@ def nextJob(dirs):
         jobProcessPath = os.path.join(dirs['ongoing'], jobBaseName)
 
         os.rename(jobInputPath, jobProcessPath)
-        job = readJson(jobProcessPath)
+        job = utils.readJson(jobProcessPath)
         job['file'] = jobBaseName
     else:
         job = False
@@ -63,19 +91,15 @@ def findNextJob(dirs):
         nextJob = random.choice(inputDirContent)
         isBeingProcessed = nextJob in os.listdir(dirs['ongoing'])
         isAlreadyDone = nextJob in os.listdir(dirs['out'])
+
         if isBeingProcessed or isAlreadyDone:
+            os.remove(os.path.join(inputDirContent, nextJob))
             nextJob = findNextJob(dirs)
+
     else:
         nextJob = False
 
     return nextJob
-
-
-def readJson(jsonFile):
-    with open(jsonFile) as f:
-        data = json.load(f)
-
-        return data
 
 
 def parallelize(inDir, outDir, nbCore, initSubFct, subFct):
@@ -86,6 +110,10 @@ def parallelize(inDir, outDir, nbCore, initSubFct, subFct):
         "ongoing": os.path.join(outDir, "ongoingJobs"),
         "done": os.path.join(outDir, "doneJobs"),
     }
+    for _, thisDir in dirs.items():
+        if not os.path.exists(thisDir):
+            print(thisDir)
+            os.makedirs(thisDir)
 
     processes = []
     for i in range(nbCore):

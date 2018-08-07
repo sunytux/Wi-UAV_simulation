@@ -16,13 +16,14 @@ Options:
 import csv
 import math
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import numpy as np
 from docopt import docopt
 import os
+from myTools import utils
 
 
 def main(csvPath, resultDir):
-
     time, sim, drone, users, rss = readData(csvPath)
 
     # TODO find better way
@@ -107,6 +108,27 @@ def getUserId(simId):
 def plotFlight(fig, drone, users):
 
     fig.clear()
+
+    ax = plt.gca()
+
+    data = utils.readJson('/opt/COTS/CloudRT/database/scenario/subrealcity.json')
+
+    for bloc in data['layer'][0]['geometry']:
+        bloc = np.array(bloc['v'])
+        x_min = min(bloc[:, 0])
+        y_min = min(bloc[:, 1])
+        x_max = max(bloc[:, 0])
+        y_max = max(bloc[:, 1])
+        w = x_max - x_min
+        h = y_max - y_min
+        # for i in range(len(x_min)):
+        rect = patches.Rectangle((x_min, y_min), w, h,
+                                 linewidth=1,
+                                 edgecolor='gainsboro',
+                                 facecolor='whitesmoke',
+                                 zorder=2)
+        ax.add_patch(rect)
+
     # Drone trajectory
     plt.plot(drone[:, 0], drone[:, 1], 'o-',
              color='gainsboro',
@@ -134,6 +156,7 @@ def plotFlight(fig, drone, users):
     plt.grid(linestyle=':', linewidth=1, color='gainsboro')
     plt.axis('equal')
     plt.axis([0, 650, 0, 500])
+    plt.show()
 
 
 def plotRadiationPattern(fig, drone, users, userID, rss, idx):

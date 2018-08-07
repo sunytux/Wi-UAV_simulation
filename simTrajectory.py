@@ -28,11 +28,14 @@ Options:
     -o DIR          Output directory [default: /tmp/result].
     -h, --help
 """
-from backend import *
+from myTools.simulator import *
+from myTools import utils
 from docopt import docopt
 import json
 import os
+import logging
 
+LOG_FILE = "flight.csv"
 
 DEFAULT_INPUT_FILE = "./exp.json"
 DEFAULT_SCENARIO = "subrealcity.json"
@@ -45,7 +48,7 @@ def main(inputFile, logFilePath, resultDir, iterations):
 
     f = open(logFilePath, 'w')
 
-    exp = readJson(inputFile)
+    exp = utils.readJson(inputFile)
 
     terminals = []
     for t in exp['terminals']:
@@ -74,13 +77,6 @@ def main(inputFile, logFilePath, resultDir, iterations):
         drone.routine(time, env)
 
     f.close()
-
-
-def readJson(jsonFile):
-    with open(jsonFile) as f:
-        data = json.load(f)
-
-        return data
 
 
 def args():
