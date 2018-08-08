@@ -2,7 +2,9 @@ function [ conf ] = initConf(confFile, resultDir, scenario)
 %UNTITLED3 Summary of this function goes here
 %   Detailed explanation goes here
 %     clear;close all;clc;
-    %% Basic Settings
+    %% Basic Setting
+    % TODO make the CloudRT path given in argument ?
+    addpath(genpath('/home/samezhou/CloudRT'));
     RESULT_DIR = [resultDir, '/result'];
     if (~exist(RESULT_DIR', 'dir')); mkdir(RESULT_DIR); end%if
 
@@ -26,7 +28,7 @@ function [ conf ] = initConf(confFile, resultDir, scenario)
     %%% mechanism
     conf.setLOS(1);
     conf.setReflection(1);
-    conf.setReflectionOrder(0); %% TODO change back to 2
+    conf.setReflectionOrder(2); %% TODO change back to 2
     conf.setScattering(1);
     conf.setScatteringMode('Lambert'); % DirectiveMode or Lambert
     conf.setTransmission(0);

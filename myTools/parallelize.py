@@ -4,14 +4,15 @@
 """Start multiple instances of a given code.
 
 """
-import logging
 import os
 import random
 from multiprocessing import Process
 import time
 import utils
 
-LOGGER = logging.getLogger(__name__)
+from myTools import LOGGER
+
+# LOGGER = logging.getLogger(__name__)
 
 
 def processWrapper(procID, dirs, initSubFct, subFct):
@@ -21,7 +22,7 @@ def processWrapper(procID, dirs, initSubFct, subFct):
     if job is not False:
         context = initSubFct()
 
-        while job is not False:
+        while job is not False and str(procID) in os.listdir(dirs['proc']):
             LOGGER.debug("Start of job %d on process %d", job["ID"], procID)
             startTime = time.time()
 
@@ -37,6 +38,8 @@ def processWrapper(procID, dirs, initSubFct, subFct):
             job = nextJob(dirs)
 
     LOGGER.info("End of process %d", procID)
+    if str(procID) in os.listdir(dirs['proc']):
+        os.remove(os.path.join(dirs['proc'], str(procID)))
 
 
 def nextJob(dirs):
@@ -58,7 +61,7 @@ def nextJob(dirs):
 
     if isBeingProcessed or isAlreadyDone:
         os.remove(nextJob)
-        nextJob = findNextJob(dirs)
+        nextJob = nextJob(dirs)
     else:
         nextJobProcessPath = os.path.join(dirs['ongoing'], nextJobBasename)
         os.rename(nextJob, nextJobProcessPath)
@@ -68,58 +71,37 @@ def nextJob(dirs):
     return nextJob
 
 
-def nextJob2(dirs):
-    jobBaseName = findNextJob(dirs)
-
-    if jobBaseName is not False:
-        jobInputPath = os.path.join(dirs['in'], jobBaseName)
-        jobProcessPath = os.path.join(dirs['ongoing'], jobBaseName)
-
-        os.rename(jobInputPath, jobProcessPath)
-        job = utils.readJson(jobProcessPath)
-        job['file'] = jobBaseName
-    else:
-        job = False
-
-    return job
-
-
-def findNextJob(dirs):
-    inputDirContent = os.listdir(dirs['in'])
-
-    if len(inputDirContent) > 0:
-        nextJob = random.choice(inputDirContent)
-        isBeingProcessed = nextJob in os.listdir(dirs['ongoing'])
-        isAlreadyDone = nextJob in os.listdir(dirs['out'])
-
-        if isBeingProcessed or isAlreadyDone:
-            os.remove(os.path.join(inputDirContent, nextJob))
-            nextJob = findNextJob(dirs)
-
-    else:
-        nextJob = False
-
-    return nextJob
-
-
 def parallelize(inDir, outDir, nbCore, initSubFct, subFct):
 
     dirs = {
         "in": inDir,
         "out": outDir,
+        "proc": os.path.join(outDir, "proc"),
         "ongoing": os.path.join(outDir, "ongoingJobs"),
         "done": os.path.join(outDir, "doneJobs"),
     }
     for _, thisDir in dirs.items():
         if not os.path.exists(thisDir):
-            print(thisDir)
             os.makedirs(thisDir)
 
     processes = []
     for i in range(nbCore):
+        open(os.path.join(dirs['proc'], str(i)), 'w').close()
         thisProcess = Process(
             target=processWrapper,
             args=(i, dirs, initSubFct, subFct)
         )
         thisProcess.start()
         processes.append(thisProcess)
+
+    while nextJob(dirs) is not False and len(os.listdir(dirs['proc'])) > 0:
+        time.sleep(3)
+        for thisProcId in range(len(processes)):
+            isFilePresent = str(thisProcId) in os.listdir(dirs['proc'])
+
+            if isFilePresent and not processes[thisProcId].is_alive():
+                processes[thisProcId] = Process(
+                    target=processWrapper,
+                    args=(thisProcId, dirs, initSubFct, subFct)
+                )
+                processes[thisProcId].start()

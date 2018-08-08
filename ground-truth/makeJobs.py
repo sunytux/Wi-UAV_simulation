@@ -9,8 +9,7 @@ Usage:
 Arguments:
 
 Options:
-    -i INPUT_DIR    Directory with setup files.
-                    [default: $UAV_DATA_DIR/ground-truth/input]
+    -i INPUT_DIR    Directory with setup files [default: ./input].
     -h, --help
 """
 # TODO I am not happy with that
@@ -23,9 +22,6 @@ from docopt import docopt
 import os
 import numpy as np
 
-
-logging.basicConfig(level=logging.DEBUG)
-LOGGER = logging.getLogger(__name__)
 
 STEP = 4  # m
 MAP_X_SIZE = 650  # m
@@ -70,9 +66,10 @@ def main(inputDir):
 
 def args():
     """Handle arguments for the main function."""
-
-    inputDir = docopt(__doc__)['-i'].replace("$UAV_DATA_DIR",
-                                             os.environ['UAV_DATA_DIR'])
+    inputDir = docopt(__doc__)['-i']
+    if 'UAV_DATA_DIR' in os.environ:
+        inputDir.replace("$UAV_DATA_DIR",
+                         os.environ['UAV_DATA_DIR'])
 
     return [inputDir]
 

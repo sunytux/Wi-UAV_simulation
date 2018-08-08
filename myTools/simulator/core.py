@@ -27,14 +27,12 @@ Options:
     -o DIR          Output directory [default: /tmp/result].
     -h, --help
 """
-import logging
 import math
 import numpy as np
 
+from myTools import LOGGER
 
 LOG_FILE = "flight.csv"
-
-LOGGER = logging.getLogger(__name__)
 
 
 class Logs(object):

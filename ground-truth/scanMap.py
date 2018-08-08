@@ -9,8 +9,7 @@ Usage:
 Arguments:
 
 Options:
-    -i INPUT_DIR    Directory with setup files.
-                    [default: $UAV_DATA_DIR/ground-truth/input]
+    -i INPUT_DIR    Directory with setup files [default: ./input].
     -o OUTPUT_DIR   Output directory [default: /tmp/result].
     -h, --help
 """
@@ -21,15 +20,13 @@ from myTools.simulator import *
 from myTools.parallelize import parallelize
 from myTools import utils
 
-import logging
+import datetime
 from docopt import docopt
 import os
 import numpy as np
+import time
 
-NB_CORE = 3
-
-logging.basicConfig(level=logging.DEBUG)
-LOGGER = logging.getLogger(__name__)
+NB_CORE = 1
 
 
 def main(inputDir, outputDir):
@@ -80,8 +77,7 @@ def main(inputDir, outputDir):
 def args():
     """Handle arguments for the main function."""
 
-    inputDir = docopt(__doc__)['-i'].replace("$UAV_DATA_DIR",
-                                             os.environ['UAV_DATA_DIR'])
+    inputDir = docopt(__doc__)['-i']
     outputDir = docopt(__doc__)['-o']
 
     return [inputDir, outputDir]

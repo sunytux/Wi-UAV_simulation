@@ -31,17 +31,14 @@ Options:
 from myTools.simulator import *
 from myTools import utils
 from docopt import docopt
-import json
 import os
-import logging
+
+from myTools import LOGGER
 
 LOG_FILE = "flight.csv"
 
 DEFAULT_INPUT_FILE = "./exp.json"
 DEFAULT_SCENARIO = "subrealcity.json"
-
-logging.basicConfig(level=logging.DEBUG)
-LOGGER = logging.getLogger(__name__)
 
 
 def main(inputFile, logFilePath, resultDir, iterations):
