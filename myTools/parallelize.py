@@ -12,7 +12,42 @@ import utils
 
 from myTools import LOGGER
 
-# LOGGER = logging.getLogger(__name__)
+
+class Job(object):
+    """docstring for Job"""
+    def __init__(self, path, dirs):
+        self.dirs = dirs
+        self.status = 'free'
+        self.path = path
+        self.initPath = path
+        self.baseName = os.path.basename(path)
+        self.ID = int(self.baseName.strip('.json'))
+
+    def isFree(self):
+        return not os.path.exists(os.path.join(self.dirs['ongoing'],
+                                               self.baseName))
+
+    def isDone(self):
+        return os.path.exists(os.path.join(self.dirs['done'],
+                                           self.baseName))
+
+    def remove(self):
+        os.remove(self.path)
+
+    def changeStatusTo(self, status):
+        if status == 'busy':
+            newPath = os.path.join(self.dirs['ongoing'], self.baseName)
+        elif status == 'done':
+            newPath = os.path.join(self.dirs['done'], self.baseName)
+        elif status == "free":
+            newPath = self.initPath
+
+        os.rename(self.path, newPath)
+        self.status = status
+        self.path = newPath
+
+    def getJson(self):
+        return utils.readJson(self.path)
 
 
 def processWrapper(procID, dirs, initSubFct, subFct):
@@ -23,16 +58,15 @@ def processWrapper(procID, dirs, initSubFct, subFct):
         context = initSubFct()
 
         while job is not False and str(procID) in os.listdir(dirs['proc']):
-            LOGGER.debug("Start of job %d on process %d", job["ID"], procID)
+
+            LOGGER.debug("Start of job %d on process %d", job.ID, procID)
             startTime = time.time()
 
-            subFct(job, *context)
+            subFct(job.getJson(), *context)
 
-            jobProcessPath = os.path.join(dirs['ongoing'], job['file'])
-            jobDonePath = os.path.join(dirs['done'], job['file'])
-            os.rename(jobProcessPath, jobDonePath)
+            job.changeStatusTo('done')
 
-            LOGGER.debug("End of job %d on process %d in %d s", job["ID"],
+            LOGGER.debug("End of job %d on process %d in %d s", job.ID,
                          procID, int(time.time() - startTime))
 
             job = nextJob(dirs)
@@ -43,32 +77,34 @@ def processWrapper(procID, dirs, initSubFct, subFct):
 
 
 def nextJob(dirs):
-    priorDir = os.path.join(dirs['in'], "prior")
+    chosenJob = False
 
-    listOfJobs = [os.path.join(dirs['in'], d) for d in os.listdir(dirs['in']) if d != "prior"]
+    # This run through all files included inside the input directory starting
+    # with the one inside a subdirectory.
+    for inputDir, d, jobs in list(os.walk(dirs['in']))[-1::-1]:
+        if len(jobs) > 0:
+            thisJob = random.choice(jobs)
+            thisJob = Job(os.path.join(inputDir, thisJob), dirs)
 
-    if os.path.isdir(priorDir) and len(os.listdir(priorDir)) > 0:
-        listOfJobs = [os.path.join(priorDir, d) for d in os.listdir(priorDir)]
+            if thisJob.isFree() and not thisJob.isDone():
+                thisJob.changeStatusTo("busy")
+                chosenJob = thisJob
+                break
 
-    if len(listOfJobs) == 0:
-        return False
+            else:
+                thisJob.remove()
+                chosenJob = nextJob(dirs)
+                break
 
-    nextJob = random.choice(listOfJobs)
-    nextJobBasename = os.path.basename(nextJob)
+    return chosenJob
 
-    isBeingProcessed = nextJobBasename in os.listdir(dirs['ongoing'])
-    isAlreadyDone = nextJobBasename in os.listdir(dirs['out'])
 
-    if isBeingProcessed or isAlreadyDone:
-        os.remove(nextJob)
-        nextJob = nextJob(dirs)
-    else:
-        nextJobProcessPath = os.path.join(dirs['ongoing'], nextJobBasename)
-        os.rename(nextJob, nextJobProcessPath)
-        nextJob = utils.readJson(nextJobProcessPath)
-        nextJob['file'] = nextJobBasename
+def jobLeft(dirs):
+    n = 0
+    for r, d, files in os.walk(dirs['in']):
+        n += len(files)
 
-    return nextJob
+    return n
 
 
 def parallelize(inDir, outDir, nbCore, initSubFct, subFct):
@@ -85,16 +121,16 @@ def parallelize(inDir, outDir, nbCore, initSubFct, subFct):
             os.makedirs(thisDir)
 
     processes = []
-    for i in range(nbCore):
-        open(os.path.join(dirs['proc'], str(i)), 'w').close()
+    for i in range(20):
         thisProcess = Process(
             target=processWrapper,
             args=(i, dirs, initSubFct, subFct)
         )
-        thisProcess.start()
         processes.append(thisProcess)
+        if i < nbCore:
+            open(os.path.join(dirs['proc'], str(i)), 'w').close()
 
-    while nextJob(dirs) is not False and len(os.listdir(dirs['proc'])) > 0:
+    while jobLeft(dirs) >= 0 and len(os.listdir(dirs['proc'])) > 0:
         time.sleep(3)
         for thisProcId in range(len(processes)):
             isFilePresent = str(thisProcId) in os.listdir(dirs['proc'])
@@ -105,3 +141,8 @@ def parallelize(inDir, outDir, nbCore, initSubFct, subFct):
                     args=(thisProcId, dirs, initSubFct, subFct)
                 )
                 processes[thisProcId].start()
+
+    if jobLeft(dirs) == 0:
+        LOGGER.info('End of simulation: no more jobs')
+    elif len(os.listdir(dirs['proc'])) == 0:
+        LOGGER.info('End of simulation: no core available')

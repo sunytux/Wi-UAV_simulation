@@ -20,20 +20,17 @@ from myTools.simulator import *
 from myTools.parallelize import parallelize
 from myTools import utils
 
-import datetime
 from docopt import docopt
 import os
 import numpy as np
-import time
 
-NB_CORE = 1
+NB_CORE = 6
 
 
 def main(inputDir, outputDir):
     initJob = utils.readJson('initialJob.json')
 
     def initUAVSimulator():
-
         terminals = []
         for t in initJob['terminals']:
             terminals.append(
@@ -55,6 +52,7 @@ def main(inputDir, outputDir):
         )
 
         rt = CloudRT(outputDir, "subrealcity.json", quiteMode=True)
+        rt = False
 
         f = open(os.path.join(outputDir, "flight.csv"), 'w')
         log = Logs(f, drone, terminals)

@@ -23,7 +23,7 @@ import os
 import numpy as np
 
 
-STEP = 4  # m
+STEP = 10  # m
 MAP_X_SIZE = 650  # m
 MAP_Y_SIZE = 500   # m
 

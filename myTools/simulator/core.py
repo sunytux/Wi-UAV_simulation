@@ -191,7 +191,7 @@ class Drone(Terminal):
 
     def routine_scan(self, time, env):
         for userIdx in range(self.nbUsers):
-            LOGGER.debug('Scanning user  ' + str(userIdx))
+            # LOGGER.debug('Scanning user  ' + str(userIdx))
             env.scan(time, userIdx)
 
     def routine_optimize(self, time, env):
