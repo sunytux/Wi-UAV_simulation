@@ -50,6 +50,65 @@ class Job(object):
         return utils.readJson(self.path)
 
 
+class Core(object):
+    """docstring for Core"""
+    def __init__(self, ID, dirs, initSubFct, subFct):
+
+        self.ID = ID
+        self.dirs = dirs
+        self.initSubFct = initSubFct
+        self.subFct = subFct
+
+        self._newProcess()
+
+    def _processWrapper(self, procID, dirs, initSubFct, subFct):
+        LOGGER.info("Starting process %d", procID)
+
+        job = nextJob(dirs)
+        if job is not False:
+            context = initSubFct()
+
+            while job is not False and self.isAvailable():
+
+                LOGGER.debug("Start of job %d on process %d", job.ID, procID)
+                startTime = time.time()
+
+                subFct(job.getJson(), *context)
+
+                job.changeStatusTo('done')
+
+                LOGGER.debug("End of job %d on process %d in %d s", job.ID,
+                             procID, int(time.time() - startTime))
+
+                job = nextJob(dirs)
+
+        LOGGER.info("End of process %d", procID)
+        if str(procID) in os.listdir(dirs['proc']):
+            os.remove(os.path.join(dirs['proc'], str(procID)))
+
+    def _newProcess(self):
+        self.process = Process(
+            target=self._processWrapper,
+            args=(self.ID, self.dirs, self.initSubFct, self.subFct)
+        )
+
+    def isAvailable(self):
+        return str(self.ID) in os.listdir(self.dirs['proc'])
+
+    def isRunning(self):
+        return self.process.is_alive()
+
+    def makeAvailable(self):
+        open(os.path.join(self.dirs['proc'], str(self.ID)), 'w').close()
+
+    def start(self):
+        if self.process.is_alive():
+            self.process.start()
+        else:
+            self._newProcess()
+            self.process.start()
+
+
 def processWrapper(procID, dirs, initSubFct, subFct):
     LOGGER.info("Starting process %d", procID)
 
@@ -92,7 +151,10 @@ def nextJob(dirs):
                 break
 
             else:
-                thisJob.remove()
+                try:
+                    thisJob.remove()
+                except OSError:
+                    pass
                 chosenJob = nextJob(dirs)
                 break
 
@@ -105,6 +167,10 @@ def jobLeft(dirs):
         n += len(files)
 
     return n
+
+
+def availableCores(dirs):
+    return len(os.listdir(dirs['proc']))
 
 
 def parallelize(inDir, outDir, nbCore, initSubFct, subFct):
@@ -120,27 +186,15 @@ def parallelize(inDir, outDir, nbCore, initSubFct, subFct):
         if not os.path.exists(thisDir):
             os.makedirs(thisDir)
 
-    processes = []
-    for i in range(20):
-        thisProcess = Process(
-            target=processWrapper,
-            args=(i, dirs, initSubFct, subFct)
-        )
-        processes.append(thisProcess)
-        if i < nbCore:
-            open(os.path.join(dirs['proc'], str(i)), 'w').close()
+    cores = [Core(i, dirs, initSubFct, subFct) for i in range(20)]
+    for core in cores[:nbCore]:
+        core.makeAvailable()
 
-    while jobLeft(dirs) >= 0 and len(os.listdir(dirs['proc'])) > 0:
+    while jobLeft(dirs) >= 0 and availableCores(dirs) > 0:
         time.sleep(3)
-        for thisProcId in range(len(processes)):
-            isFilePresent = str(thisProcId) in os.listdir(dirs['proc'])
-
-            if isFilePresent and not processes[thisProcId].is_alive():
-                processes[thisProcId] = Process(
-                    target=processWrapper,
-                    args=(thisProcId, dirs, initSubFct, subFct)
-                )
-                processes[thisProcId].start()
+        for core in cores:
+            if core.isAvailable() and not core.isRunning():
+                core.start()
 
     if jobLeft(dirs) == 0:
         LOGGER.info('End of simulation: no more jobs')
