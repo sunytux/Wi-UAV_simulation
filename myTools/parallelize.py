@@ -109,32 +109,6 @@ class Core(object):
             self.process.start()
 
 
-def processWrapper(procID, dirs, initSubFct, subFct):
-    LOGGER.info("Starting process %d", procID)
-
-    job = nextJob(dirs)
-    if job is not False:
-        context = initSubFct()
-
-        while job is not False and str(procID) in os.listdir(dirs['proc']):
-
-            LOGGER.debug("Start of job %d on process %d", job.ID, procID)
-            startTime = time.time()
-
-            subFct(job.getJson(), *context)
-
-            job.changeStatusTo('done')
-
-            LOGGER.debug("End of job %d on process %d in %d s", job.ID,
-                         procID, int(time.time() - startTime))
-
-            job = nextJob(dirs)
-
-    LOGGER.info("End of process %d", procID)
-    if str(procID) in os.listdir(dirs['proc']):
-        os.remove(os.path.join(dirs['proc'], str(procID)))
-
-
 def nextJob(dirs):
     chosenJob = False
 
@@ -169,6 +143,10 @@ def jobLeft(dirs):
     return n
 
 
+def ongoingJobs(dirs):
+    return len(os.listdir(dirs['ongoingJobs']))
+
+
 def availableCores(dirs):
     return len(os.listdir(dirs['proc']))
 
@@ -190,7 +168,7 @@ def parallelize(inDir, outDir, nbCore, initSubFct, subFct):
     for core in cores[:nbCore]:
         core.makeAvailable()
 
-    while jobLeft(dirs) >= 0 and availableCores(dirs) > 0:
+    while jobLeft(dirs) + ongoingJobs(dirs) >= 0 and availableCores(dirs) > 0:
         time.sleep(3)
         for core in cores:
             if core.isAvailable() and not core.isRunning():
