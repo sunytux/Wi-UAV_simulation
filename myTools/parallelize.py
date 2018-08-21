@@ -144,7 +144,7 @@ def jobLeft(dirs):
 
 
 def ongoingJobs(dirs):
-    return len(os.listdir(dirs['ongoingJobs']))
+    return len(os.listdir(dirs['ongoing']))
 
 
 def availableCores(dirs):

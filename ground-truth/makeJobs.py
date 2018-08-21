@@ -49,8 +49,8 @@ def main(inputDir):
 
             thisJob = utils.readJson('initialJob.json')
             thisJob["ID"] = thisJobId
-            thisJob["x"] = i * STEP
-            thisJob["y"] = j * STEP
+            thisJob["drone"]["x"] = i * STEP
+            thisJob["drone"]["y"] = j * STEP
 
             if (PRIOR_X_RANGE[0] < i * STEP < PRIOR_X_RANGE[1] and
                     PRIOR_Y_RANGE[0] < j * STEP < PRIOR_Y_RANGE[1]):
