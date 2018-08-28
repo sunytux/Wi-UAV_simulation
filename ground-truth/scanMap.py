@@ -4,18 +4,16 @@
 """Ground Truth
 
 Usage:
-    scanMap.py [-i <INPUT_DIR>] [-o OUTPUT_DIR]
+    scanMap.py -i <INPUT_DIR> -o OUTPUT_DIR -j <INIT_JOB>
 
 Arguments:
+    -i INPUT_DIR    Directory with setup files.
+    -o OUTPUT_DIR   Output directory.
+    -j INIT_JOB     Initial job that will be copied.
 
 Options:
-    -i INPUT_DIR    Directory with setup files [default: ./input].
-    -o OUTPUT_DIR   Output directory [default: /tmp/result].
     -h, --help
 """
-# TODO I am not happy with that
-import sys
-sys.path.insert(0, "../")
 from myTools.simulator import *
 from myTools.parallelize import parallelize
 from myTools import utils
@@ -28,7 +26,8 @@ NB_CORE = 6
 
 
 def main(inputDir, outputDir):
-    initJob = utils.readJson('initialJob.json')
+    # TODO clean that
+    initJob = utils.readJson(docopt(__doc__)['-j'])
 
     def initUAVSimulator():
         terminals = []
