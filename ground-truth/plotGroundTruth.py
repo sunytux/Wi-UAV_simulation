@@ -4,16 +4,19 @@
 """Ground Truth
 
 Usage:
-    plotGroundTruth.py
+    plotGroundTruth.py -i <INPUT_FILE> -j <INIT_JOB>
 
 Arguments:
+    -i INPUT_FILE   Data file with simulation results.
+    -j INIT_JOB     Initial job that will be copied.
 
 Options:
     -h, --help
 """
 from myTools import plot
-
+from myTools import utils
 import math
+from docopt import docopt
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -24,14 +27,23 @@ DATA_FILE = "/home/sami/docs/phd/projects/04_wireless_UAV_simulator/data/" \
 STEP = 10
 
 
-def main():
+def main(inputDir, initialJobFile):
 
-    df = pd.read_csv(DATA_FILE, index_col=0)
+    initJob = utils.readJson(initialJobFile)
+
+    df = pd.read_csv(inputDir, index_col=0)
+
     df['rss'] = (df[['re', 'im']]
                  .apply(lambda row: getRss(row['re'], row['im']), axis=1))
     df = df.groupby('id').apply(criterion)
 
+    # Plot the city
     plot.plot_scenario()
+
+    # Plot terminals
+    plot.plot_terminals(initJob['terminals'])
+
+    # Plot the heatmap
     plot.plot_heatmap(df['x'].values,
                       df['y'].values,
                       df['rss'].values,
@@ -69,5 +81,13 @@ def getRss(re, im):
     return math.pow(re, 2.0) + math.pow(im, 2.0)
 
 
+def args():
+    """Handle arguments for the main function."""
+    inputDir = docopt(__doc__)['-i']
+    initialJobFile = docopt(__doc__)['-j']
+
+    return [inputDir, initialJobFile]
+
+
 if __name__ == '__main__':
-    main()
+    main(*args())

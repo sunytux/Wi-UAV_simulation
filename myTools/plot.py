@@ -1,21 +1,24 @@
 #! /usr/bin/python2.7 -u
 # -*- coding: utf-8 -*-
 
-"""Library for graph plotting 
+"""Library for plotting graphs
 """
 
+from myTools import utils
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.patches as patches
 import numpy as np
-
-from myTools import utils
+import os
 
 CMAP = cm.get_cmap('Spectral')
+CMAP = cm.get_cmap('jet')
+
+SCENARIO_DIR = '/opt/COTS/CloudRT/database/scenario/'
 
 
 def plot_scenario():
-    data = utils.readJson('/opt/COTS/CloudRT/database/scenario/subrealcity.json')
+    data = utils.readJson(os.path.join(SCENARIO_DIR, 'subrealcity.json'))
 
     for bloc in data['layer'][0]['geometry']:
         bloc = np.array(bloc['v'])
@@ -47,6 +50,22 @@ def plot_heatmap(x, y, z, w, h):
                                  w[i], h[i],
                                  linewidth=0,
                                  facecolor=CMAP(z[i]),
-                                 alpha=0.5,
+                                 alpha=0.7,
                                  zorder=2)
         plt.gca().add_patch(rect)
+
+
+def plot_terminals(terminals):
+    """Plot terminals on a map
+
+    terminal is a list of dict formatted as such:
+    [{"x" :386, "y" :272, "z" :1.8, "u" :0, "v" :0, "w" :0}, ...]
+    The base station should be the first element
+    """
+
+    for i in range(len(terminals)):
+        opt = 'go' if i == 0 else 'r*'
+        plt.plot(terminals[i]['x'], terminals[i]['y'], opt,
+                 markersize=15,
+                 markeredgewidth=2,
+                 markeredgecolor='black')

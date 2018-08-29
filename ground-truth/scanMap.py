@@ -50,7 +50,7 @@ def main(inputDir, outputDir):
             AoAAlgo="AoA-algo"
         )
 
-        rt = CloudRT(outputDir, "subrealcity.json", quiteMode=True)
+        rt = CloudRT(outputDir, initJob["scenario"], quiteMode=True)
 
         f = open(os.path.join(outputDir, "flight.csv"), 'w')
         log = Logs(f, drone, terminals)

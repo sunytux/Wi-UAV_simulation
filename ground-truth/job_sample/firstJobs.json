@@ -1,4 +1,5 @@
 {
+	"scenario": "subrealcity.json",
     "ID": 0,
     "drone": {"x": 0, "y": 0, "z": 100, "u": 0, "v": 0, "w": 0},
     "terminals": [

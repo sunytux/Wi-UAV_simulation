@@ -15,7 +15,6 @@ Options:
 """
 
 from myTools import utils
-
 from docopt import docopt
 import os
 import numpy as np
@@ -24,9 +23,6 @@ import numpy as np
 STEP = 10  # m
 MAP_X_SIZE = 650  # m
 MAP_Y_SIZE = 500   # m
-
-# PRIOR_X_RANGE = [300, 550]
-# PRIOR_Y_RANGE = [100, 275]
 
 
 def main(inputDir, initialJob):
@@ -48,18 +44,10 @@ def main(inputDir, initialJob):
             thisJob["drone"]["x"] = i * STEP
             thisJob["drone"]["y"] = j * STEP
 
-            # if (PRIOR_X_RANGE[0] < i * STEP < PRIOR_X_RANGE[1] and
-            #         PRIOR_Y_RANGE[0] < j * STEP < PRIOR_Y_RANGE[1]):
-            #     thisJobDir = priorDir
-            # else:
-            #     thisJobDir = jobDir
             thisJobDir = jobDir
             thisJobFile = os.path.join(thisJobDir,
                                        '{:06d}.json'.format(thisJobId))
             utils.writeJson(thisJobFile, thisJob)
-
-    # TODO check if necessary else remove
-    # utils.writeJson(os.path.join(inputDir, 'table.json'), coordTable.tolist())
 
 
 def args():
