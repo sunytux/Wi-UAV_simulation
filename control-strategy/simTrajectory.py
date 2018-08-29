@@ -18,27 +18,24 @@ as a map of the environment and returns a complete set of information
 describing both the UAV and the environment at every moment.
 
 Usage:
-    simTrajectory.py [<INPUT_FILE>] [-i ITER] [-o DIR]
+    simTrajectory.py -j <INPUT_FILE> -o DIR [-i ITER]
 
 Arguments:
+    -j <INPUT_FILE> Path to Json file of the experience.
+    -o DIR          Output directory.
 
 Options:
-    <INPUT_FILE>    Path to Json file of the experience [default: ./exp.json].
     -i ITER         Iterations [default: 12].
-    -o DIR          Output directory [default: /tmp/result].
     -h, --help
 """
+from myTools import LOGGER
 from myTools.simulator import *
 from myTools import utils
 from docopt import docopt
 import os
 
-from myTools import LOGGER
 
 LOG_FILE = "flight.csv"
-
-DEFAULT_INPUT_FILE = "./exp.json"
-DEFAULT_SCENARIO = "subrealcity.json"
 
 
 def main(inputFile, logFilePath, resultDir, iterations):
@@ -59,12 +56,7 @@ def main(inputFile, logFilePath, resultDir, iterations):
                   routineAlgo=exp["routine-algo"],
                   AoAAlgo=exp["AoA-algo"])
 
-    if "scenario" in exp:
-        scenario = exp["scenario"]
-    else:
-        scenario = DEFAULT_SCENARIO
-
-    rt = CloudRT(resultDir, scenario, quiteMode=True)
+    rt = CloudRT(resultDir, exp["scenario"], quiteMode=True)
     log = Logs(f, drone, terminals)
 
     env = EnvironmentRF(resultDir, rt, log, terminals, drone)
@@ -80,12 +72,7 @@ def args():
     """Handle arguments for the main function."""
 
     iterations = int(docopt(__doc__)['-i'])
-
-    if docopt(__doc__)['<INPUT_FILE>']:
-        inputFile = docopt(__doc__)['<INPUT_FILE>']
-    else:
-        inputFile = DEFAULT_INPUT_FILE
-
+    inputFile = docopt(__doc__)['-j']
     resultDir = docopt(__doc__)['-o']
     if not os.path.exists(resultDir):
         os.makedirs(resultDir)

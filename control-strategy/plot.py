@@ -4,13 +4,13 @@
 """Plot and save figures of flight logs.
 
 Usage:
-    plotRadiationPattern.py [<PATH>] [-o DIR]
+    plot.py -d <FLIGHT_LOG> -o DIR
 
 Arguments:
-    <PATH>          Path to flight logs [default: /tmp/result/flight.csv].
+    -d <FLIGHT_LOG>  Path to flight logs.
+    -o DIR           Output directory.
 
 Options:
-    -o DIR          Output directory [default: /tmp/result/png].
     -h, --help
 """
 import csv
@@ -55,12 +55,7 @@ def main(csvPath, resultDir):
 
 def args():
     """Handle arguments for the main function."""
-
-    if docopt(__doc__)['<PATH>']:
-        csvPath = docopt(__doc__)['<PATH>']
-    else:
-        csvPath = "/tmp/result/flight.csv"
-
+    csvPath = docopt(__doc__)['-d']
     resultDir = docopt(__doc__)['-o']
     if not os.path.exists(resultDir):
         os.makedirs(resultDir)
