@@ -195,30 +195,23 @@ class Drone(Terminal):
             env.scan(time, userIdx)
 
     def routine_optimize(self, time, env):
-        # TODO add support for multiple user
+        AoA = 0
+        maxRss = -1
+        for i in range(self.nbUsers):
+            env.scan(time, i)
+            LOGGER.debug('Scanning for user ' + str(i))
+            userAoA = self.getAoA()
+            userRss = max([a.rss for a in self.ant])
+            if userRss < maxRss or maxRss == -1:  # TODO clean that
+                AoA = userAoA
+                maxRss = userRss
+                userIdx = i
 
-        # Drone-user
-        env.scan(time, 1)
-        AoAUser = self.getAoA()
-        maxRssUser = max([a.rss for a in self.ant])
+        LOGGER.debug('User ' + str(userIdx) + 'is the weakest')
 
-        LOGGER.debug('User to drone: AoA = ' + str(np.rad2deg(AoAUser)))
-        LOGGER.debug('User to drone: rss = ' + str(np.rad2deg(maxRssUser)))
+        d = [math.cos(AoA + self.u), math.sin(AoA + self.u)]
 
-        # Drone-base-station
-        env.scan(time, 0)
-        AoABs = self.getAoA()
-        maxRssBs = max([a.rss for a in self.ant])
-
-        LOGGER.debug('Bs to drone: AoA = ' + str(np.rad2deg(AoABs)))
-        LOGGER.debug('Bs to drone: rss = ' + str(maxRssBs))
-
-        if maxRssBs > maxRssUser:
-            d = [math.cos(AoAUser + self.u), math.sin(AoAUser + self.u)]
-        else:
-            d = [math.cos(AoABs + self.u), math.sin(AoABs + self.u)]
-
-        COEF = 20
+        COEF = 100
 
         self.x += COEF * d[0]
         self.y += COEF * d[1]
