@@ -4,11 +4,12 @@
 """Ground Truth
 
 Usage:
-    plotGroundTruth.py -i <INPUT_FILE> -j <INIT_JOB>
+    plotGroundTruth.py -i <INPUT_FILE> -j <INIT_JOB> -o <OUTPUT_FILE>
 
 Arguments:
-    -i INPUT_FILE   Data file with simulation results.
-    -j INIT_JOB     Initial job that will be copied.
+    -i INPUT_FILE     Data file with simulation results.
+    -j INIT_JOB       Initial job that will be copied.
+    -o <OUTPUT_FILE>  Output file.
 
 Options:
     -h, --help
@@ -21,13 +22,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-DATA_FILE = "/home/sami/docs/phd/projects/04_wireless_UAV_simulator/data/" \
-            "ground-truth_firstJobs/ground-truth-map.csv"
-
 STEP = 10
 
 
-def main(inputDir, initialJobFile):
+def main(inputDir, initialJobFile, outputFile):
 
     initJob = utils.readJson(initialJobFile)
 
@@ -36,6 +34,14 @@ def main(inputDir, initialJobFile):
     df['rss'] = (df[['re', 'im']]
                  .apply(lambda row: getRss(row['re'], row['im']), axis=1))
     df = df.groupby('id').apply(criterion)
+
+    # Figure
+    plt.title("Ground truth")
+    plt.xlabel("x [m]")
+    plt.ylabel("y [m]")
+    plt.grid(linestyle=':', linewidth=1, color='gainsboro')
+    plt.axis('equal')
+    plt.axis([0, 650, 0, 500])
 
     # Plot the city
     plot.plot_scenario()
@@ -48,15 +54,10 @@ def main(inputDir, initialJobFile):
                       df['y'].values,
                       df['rss'].values,
                       np.ones(len(df['x'])) * STEP,
-                      np.ones(len(df['x'])) * STEP)
+                      np.ones(len(df['x'])) * STEP,
+                      legend='RSS (dB)')
 
-    plt.title("Ground truth")
-    plt.xlabel("x [m]")
-    plt.ylabel("y [m]")
-    plt.grid(linestyle=':', linewidth=1, color='gainsboro')
-    plt.axis('equal')
-
-    plt.show()
+    plt.gcf().savefig(outputFile, bbox_inches='tight')
 
 
 def criterion(rows):
@@ -78,15 +79,22 @@ def criterion(rows):
 
 
 def getRss(re, im):
-    return math.pow(re, 2.0) + math.pow(im, 2.0)
+
+    # TODO result shouldn't be 0.0 redo exp t002968 and t002969
+    if re + im == 0:
+        re, im = 1e-6, 1e-6
+
+    # return math.pow(re, 2.0) + math.pow(im, 2.0)
+    return 10 * math.log10(math.pow(re, 2.0) + math.pow(im, 2.0))
 
 
 def args():
     """Handle arguments for the main function."""
     inputDir = docopt(__doc__)['-i']
     initialJobFile = docopt(__doc__)['-j']
+    outputFile = docopt(__doc__)['-o']
 
-    return [inputDir, initialJobFile]
+    return [inputDir, initialJobFile, outputFile]
 
 
 if __name__ == '__main__':

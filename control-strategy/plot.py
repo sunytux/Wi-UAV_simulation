@@ -151,7 +151,6 @@ def plotFlight(fig, drone, users):
     plt.grid(linestyle=':', linewidth=1, color='gainsboro')
     plt.axis('equal')
     plt.axis([0, 650, 0, 500])
-    plt.show()
 
 
 def plotRadiationPattern(fig, drone, users, userID, rss, idx):
