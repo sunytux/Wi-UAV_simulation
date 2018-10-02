@@ -16,11 +16,10 @@ Options:
 import csv
 import math
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import numpy as np
 from docopt import docopt
 import os
-from myTools import utils
+from myTools import plot
 
 
 def main(csvPath, resultDir):
@@ -32,16 +31,20 @@ def main(csvPath, resultDir):
         if not os.path.exists(d):
             os.makedirs(d)
 
-    fig1 = plt.figure()
-    plotFlight(fig1, drone, users)
+    # Plot the flight trajectory
+    plotFlight(drone, users)
     figureName = os.path.join(resultDir, "flight.png")
     plt.savefig(figureName, bbox_inches='tight')
 
+    exit()
+
+    # Plot the max-RSS switching figure
     fig2 = plt.figure()
     plotMaxRss(fig2, time, sim, users, rss)
     figureName = os.path.join(resultDir, "maxRss.png")
     plt.savefig(figureName, bbox_inches='tight')
 
+    # For each users plot the radiation pattern at each iterations
     for idx in range(len(rss)):
         fig = plt.figure()
         userIdx = getUserId(sim[idx])
@@ -100,49 +103,11 @@ def getUserId(simId):
     return int(simId.split('-')[0].strip('u'))
 
 
-def plotFlight(fig, drone, users):
+def plotFlight(drone, users):
 
-    fig.clear()
-
-    ax = plt.gca()
-
-    data = utils.readJson('/opt/COTS/CloudRT/database/scenario/subrealcity.json')
-
-    for bloc in data['layer'][0]['geometry']:
-        bloc = np.array(bloc['v'])
-        x_min = min(bloc[:, 0])
-        y_min = min(bloc[:, 1])
-        x_max = max(bloc[:, 0])
-        y_max = max(bloc[:, 1])
-        w = x_max - x_min
-        h = y_max - y_min
-        # for i in range(len(x_min)):
-        rect = patches.Rectangle((x_min, y_min), w, h,
-                                 linewidth=1,
-                                 edgecolor='gainsboro',
-                                 facecolor='whitesmoke',
-                                 zorder=2)
-        ax.add_patch(rect)
-
-    # Drone trajectory
-    plt.plot(drone[:, 0], drone[:, 1], 'o-',
-             color='gainsboro',
-             markersize=4,
-             markerfacecolor='gray',
-             markeredgecolor='gray')
-    plt.plot(drone[0, 0], drone[0, 1], 'kx',
-             markersize=10,
-             mew=4)
-    plt.plot(drone[-1, 0], drone[-1, 1], 'kv',
-             markersize=10)
-
-    # Terminals
-    for i in range(len(users)):
-        user = users[i]
-
-        opt = 'go' if i == 0 else 'r*'
-        plt.plot(user[:, 0], user[:, 1], opt,
-                 markersize=10)
+    plot.plot_scenario(edge='gainsboro', face='whitesmoke')
+    plot.plot_terminals(users)
+    plot.plot_flight(drone)
 
     # Cosmetics
     plt.title("Flight trajectory")

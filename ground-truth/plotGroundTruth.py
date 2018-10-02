@@ -47,7 +47,19 @@ def main(inputDir, initialJobFile, outputFile):
     plot.plot_scenario()
 
     # Plot terminals
-    plot.plot_terminals(initJob['terminals'])
+    bsOpt = {
+        "markeredgewidth": 2,
+        "markersize": 15,
+        "color": 'white',
+        "markeredgecolor": 'black'
+    }
+    userOpt = {
+        "markeredgewidth": 2,
+        "markersize": 20,
+        "color": 'white',
+        "markeredgecolor": 'black'
+    }
+    plot.plot_terminals(initJob['terminals'], bsOpt=bsOpt, userOpt=userOpt)
 
     # Plot the heatmap
     plot.plot_heatmap(df['x'].values,

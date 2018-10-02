@@ -20,7 +20,13 @@ CMAP = cm.get_cmap('jet')
 SCENARIO_DIR = '/opt/COTS/CloudRT/database/scenario'
 
 
-def plot_scenario():
+def plot_scenario(edge='black', face='gray'):
+    """Plot the scenario
+
+       Scenarios are maps given to CloudRT
+
+       TODO scenarios are hard-coded, change that
+    """
     data = utils.readJson(os.path.join(SCENARIO_DIR, 'subrealcity.json'))
 
     for bloc in data['layer'][0]['geometry']:
@@ -34,8 +40,8 @@ def plot_scenario():
         rect = patches.Rectangle(
             (x_min, y_min), w, h,
             linewidth=1,
-            edgecolor='black',
-            facecolor='gray',
+            edgecolor=edge,
+            facecolor=face,
             zorder=2
         )
         plt.gca().add_patch(rect)
@@ -64,41 +70,67 @@ def plot_heatmap(x, y, z, w, h, legend=False):
     if legend:
         ax = plt.gcf().add_axes([0.9, 0.11, 0.01, 0.77])
 
-        cmap = CMAP
-        # cmap.set_over('0.25')
-        # cmap.set_under('0.75')
-
         norm = mpl.colors.Normalize(vmin=min(z), vmax=max(z))
         cb = mpl.colorbar.ColorbarBase(
-            ax, cmap=cmap, norm=norm, orientation='vertical'
+            ax, cmap=CMAP, norm=norm, orientation='vertical'
         )
         cb.set_label(legend)
 
 
-def plot_terminals(terminals):
+def plot_terminals(terminals, bsOpt={}, userOpt={}):
     """Plot terminals on a map
 
-    terminal is a list of dict formatted as such:
-    [{"x" :386, "y" :272, "z" :1.8, "u" :0, "v" :0, "w" :0}, ...]
-    The base station should be the first element
+       terminals is a list of N terminals represented either by a Mx6 numpy
+       array or a dict formatted as follow:
+       [{"x" :386, "y" :272, "z" :1.8, "u" :0, "v" :0, "w" :0}, ...]
+       bsOpt and userOpt is a dict of matplotlib
     """
 
+    if type(terminals[0]) == dict:
+        terminals = [np.array([[t["x"], t["y"], t["z"],
+                                t["u"], t["v"], t["w"]]]) for t in terminals]
+
+    defaultBsOpt = {
+        "marker": "o",
+        "markeredgewidth": 1,
+        "markersize": 10,
+        "color": 'green',
+        "markeredgecolor": 'green'
+    }
+    defaultUserOpt = {
+        "marker": "*",
+        "markeredgewidth": 1,
+        "markersize": 10,
+        "color": 'red',
+        "markeredgecolor": 'red'
+    }
+    defaultBsOpt.update(bsOpt)
+    defaultUserOpt.update(userOpt)
+
     for i in range(len(terminals)):
-        if i == 0:
-            plt.plot(
-                terminals[i]['x'], terminals[i]['y'], 'o',
-                color='white',
-                markersize=10,
-                markeredgewidth=2,
-                markeredgecolor='black'
-                # markeredgecolor='white'
-            )
-        else:
-            plt.plot(
-                terminals[i]['x'], terminals[i]['y'], '*',
-                color='white',
-                markersize=15,
-                markeredgewidth=2,
-                markeredgecolor='black'
-                # markeredgecolor='white'
-            )
+        opt = defaultBsOpt if i == 0 else defaultUserOpt
+        plt.plot(terminals[i][:, 0], terminals[i][:, 1], **opt)
+
+
+def plot_flight(drone):
+    """Plot drone trajectory
+
+    drone is a Mx2 numpy array
+    """
+
+    plt.plot(
+        drone[:, 0], drone[:, 1], 'o-',
+        color='gainsboro',
+        markersize=4,
+        markerfacecolor='gray',
+        markeredgecolor='gray'
+    )
+    plt.plot(
+        drone[0, 0], drone[0, 1], 'kx',
+        markersize=10,
+        mew=4
+    )
+    plt.plot(
+        drone[-1, 0], drone[-1, 1], 'kv',
+        markersize=10
+    )
