@@ -17,6 +17,8 @@ import matlab.engine
 import os
 import StringIO
 import tempfile
+import pandas as pd
+import numpy as np
 
 
 class CloudRT():
@@ -60,3 +62,64 @@ class CloudRT():
         self.conf = self.eng.setRxPose(self.conf, self.confFile,
                                        self.resultDir,
                                        x, y, z, u, v, w, **self.opt)
+
+
+class CloudRT_DataBase():
+    """Ray-tracer object with pre-computed results.
+
+       terminals is a list of N terminals represented by a dict formatted as
+       follow:
+       [{"x" :386, "y" :272, "z" :1.8, "u" :0, "v" :0, "w" :0}, ...]
+    """
+
+    STEP = 10
+
+    def __init__(self, terminals, dbFile):
+        self.terminals = terminals
+
+        # TODO clean that shit
+        DEFAULT_ANTENNAS_OFFSET = np.deg2rad([0, 45, 90, 135, 180, 225, 270])
+        self.terminalOffsets = []
+        for offset in DEFAULT_ANTENNAS_OFFSET:
+            self.terminalOffsets.append(
+                [np.deg2rad(90) + offset, np.deg2rad(90 + 45), 0]
+            )
+
+        self.rx = [0 for i in range(6)]
+        self.tx = [0 for i in range(6)]
+
+        self.df = pd.read_csv(dbFile, index_col=0)
+
+    def simulate(self, simId):
+        x, y = self.determineDronePosition()
+        userIdx, antIdx = self.determineAntenna()
+
+        row = self.df[(self.df['x'] == x) &
+                      (self.df['y'] == y) &
+                      (self.df['user'] == userIdx) &
+                      (self.df['ant'] == antIdx)]
+
+        return float(row['re']), float(row['im'])
+
+    def setTxPose(self, x, y, z, u, v, w):
+        self.tx = [x, y, z, u, v, w]
+
+    def setRxPose(self, x, y, z, u, v, w):
+        # TODO handle out of the map
+        self.rx = [x, y, z, u, v, w]
+
+    def determineDronePosition(self):
+        x = (self.rx[0] // 10) * 10 % 640  # TODO clean that
+        y = (self.rx[1] // 10) * 10 % 500  # TODO clean that
+        return x, y
+
+    def determineAntenna(self):
+        userIdx = self.terminals.index(
+            {"x": self.tx[0], "y": self.tx[1], "z": self.tx[2],
+             "u": self.tx[3], "v": self.tx[4], "w": self.tx[5]}
+        )
+        antIdx = self.terminalOffsets.index(
+            [self.rx[3], self.rx[4], self.rx[5]]
+        )
+
+        return userIdx, antIdx

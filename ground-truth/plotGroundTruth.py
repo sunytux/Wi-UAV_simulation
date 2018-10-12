@@ -25,11 +25,11 @@ import matplotlib.pyplot as plt
 STEP = 10
 
 
-def main(inputDir, initialJobFile, outputFile):
+def main(inputFile, initialJobFile, outputFile):
 
     initJob = utils.readJson(initialJobFile)
 
-    df = pd.read_csv(inputDir, index_col=0)
+    df = pd.read_csv(inputFile, index_col=0)
 
     df['rss'] = (df[['re', 'im']]
                  .apply(lambda row: getRss(row['re'], row['im']), axis=1))
@@ -102,11 +102,11 @@ def getRss(re, im):
 
 def args():
     """Handle arguments for the main function."""
-    inputDir = docopt(__doc__)['-i']
+    inputFile = docopt(__doc__)['-i']
     initialJobFile = docopt(__doc__)['-j']
     outputFile = docopt(__doc__)['-o']
 
-    return [inputDir, initialJobFile, outputFile]
+    return [inputFile, initialJobFile, outputFile]
 
 
 if __name__ == '__main__':

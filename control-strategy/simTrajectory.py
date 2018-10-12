@@ -56,7 +56,9 @@ def main(inputFile, logFilePath, resultDir, iterations):
                   routineAlgo=exp["routine-algo"],
                   AoAAlgo=exp["AoA-algo"])
 
-    rt = CloudRT(resultDir, exp["scenario"], quiteMode=True)
+    # rt = CloudRT(resultDir, exp["scenario"], quiteMode=True)
+    dbFile = '/home/sami/docs/phd/projects/04_wireless_UAV_simulator/data/ground-truth/ground-truth-map.csv'
+    rt = CloudRT_DataBase(exp['terminals'], dbFile)
     log = Logs(f, drone, terminals)
 
     env = EnvironmentRF(resultDir, rt, log, terminals, drone)

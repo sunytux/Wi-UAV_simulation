@@ -165,6 +165,10 @@ class Drone(Terminal):
     """docstring for Drone"""
     DEFAULT_ANTENNAS_OFFSET = np.deg2rad([0, 90, 180, 270])
 
+    # TODO make it map agnostic
+    MAX_X = 650
+    MAX_Y = 500
+
     def __init__(self, x, y, z, u, v, w, nbUsers,
                  antOffset=DEFAULT_ANTENNAS_OFFSET,
                  routineAlgo="locate",
@@ -211,10 +215,15 @@ class Drone(Terminal):
 
         d = [math.cos(AoA + self.u), math.sin(AoA + self.u)]
 
-        COEF = 100
+        COEF = 50
 
         self.x += COEF * d[0]
         self.y += COEF * d[1]
+
+        self.x = 0 if self.x < 0 else self.x
+        self.x = self.MAX_X if self.x > self.MAX_X else self.x
+        self.y = 0 if self.y < 0 else self.y
+        self.y = self.MAX_Y if self.y > self.MAX_Y else self.y
 
     def routine_locate(self, time, env):
         # TODO add support for choosing which user to locate
