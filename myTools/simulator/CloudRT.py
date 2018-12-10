@@ -78,7 +78,7 @@ class CloudRT_DataBase():
         self.terminals = terminals
 
         # TODO clean that shit
-        DEFAULT_ANTENNAS_OFFSET = np.deg2rad([0, 45, 90, 135, 180, 225, 270])
+        DEFAULT_ANTENNAS_OFFSET = np.deg2rad([0, 45, 90, 135, 180, 225, 270, 315])
         self.terminalOffsets = []
         for offset in DEFAULT_ANTENNAS_OFFSET:
             self.terminalOffsets.append(

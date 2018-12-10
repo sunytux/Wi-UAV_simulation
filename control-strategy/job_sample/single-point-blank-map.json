@@ -1,0 +1,19 @@
+{
+	"scenario": "Plank.json",
+	"drone": {"x": 150,  "y": 121, "z": 100, "u": 0, "v": 0, "w": 0},
+	"terminals": [
+		{"x": 308, "y": 121, "z": 1.8, "u": 0, "v": 0, "w": 0}
+	],
+	"antenna-offsets": [0, 45, 90, 135, 180, 225, 270, 315],
+	
+	"use-database": false,
+	"routine-algo": "scan",
+	"AoA-algo": "weighted-rss",
+	"max-iteration":1,
+
+	"simulation-output-csv": "/home/sami/docs/phd/projects/04_wireless_UAV_simulator/data/single-point-blank-map-working/flight.csv",
+	"CloudRT-output-dir": "/home/sami/docs/phd/projects/04_wireless_UAV_simulator/data/single-point-blank-map-working/CloudRT",
+
+	"matlab-quite-mode": false
+
+}

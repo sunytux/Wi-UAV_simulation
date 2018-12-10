@@ -25,26 +25,21 @@ from myTools import plot
 def main(csvPath, resultDir):
     time, sim, drone, users, rss = readData(csvPath)
 
-    # TODO find better way
-    for user in range(len(users)):
-        d = os.path.join(resultDir, "user-" + str(user))
-        if not os.path.exists(d):
-            os.makedirs(d)
-
     # Plot the flight trajectory
     plotFlight(drone, users)
     figureName = os.path.join(resultDir, "flight.png")
-    plt.savefig(figureName, bbox_inches='tight')
-
-    exit()
+    plt.savefig(figureName, bbox_inches='tight', dpi=300)
 
     # Plot the max-RSS switching figure
     fig2 = plt.figure()
     plotMaxRss(fig2, time, sim, users, rss)
     figureName = os.path.join(resultDir, "maxRss.png")
-    plt.savefig(figureName, bbox_inches='tight')
+    plt.savefig(figureName, bbox_inches='tight', dpi=300)
 
+    exit()
+    # TODO decide if we keep the radiation pattern feature
     # For each users plot the radiation pattern at each iterations
+    makeUserDirs(resultDir, users)
     for idx in range(len(rss)):
         fig = plt.figure()
         userIdx = getUserId(sim[idx])
@@ -64,6 +59,14 @@ def args():
         os.makedirs(resultDir)
 
     return [csvPath, resultDir]
+
+
+def makeUserDirs(resultDir, users):
+    # TODO find better way
+    for user in range(len(users)):
+        d = os.path.join(resultDir, "user-" + str(user))
+        if not os.path.exists(d):
+            os.makedirs(d)
 
 
 def readData(csvPath):
@@ -178,8 +181,8 @@ def plotMaxRss(fig, time, sim, users, rss):
 
     # Cosmetics
     plt.title("Maximum measured Rss")
-    plt.xlabel("iterations [/]")
-    plt.ylabel("Measured Rss [dB]")
+    plt.xlabel("Iterations [/]")
+    plt.ylabel("Measured Rss [dBm]")
     plt.xticks(np.arange(iterations[0], iterations[-1] + 1, 1.0))
     plt.grid(linestyle=':', linewidth=1, color='gainsboro')
     plt.legend()

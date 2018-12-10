@@ -31,8 +31,7 @@ import math
 import numpy as np
 
 from myTools import LOGGER
-
-LOG_FILE = "flight.csv"
+from myTools import utils
 
 
 class Logs(object):
@@ -126,7 +125,7 @@ class baseStation(Terminal):
 
 class EnvironmentRF(object):
     """docstring for EnvironmentRF"""
-    def __init__(self, resultDir, rt, log, terminals, drone):
+    def __init__(self, rt, log, terminals, drone):
 
         self.terminals = terminals
         self.drone = drone
@@ -197,6 +196,8 @@ class Drone(Terminal):
         for userIdx in range(self.nbUsers):
             # LOGGER.debug('Scanning user  ' + str(userIdx))
             env.scan(time, userIdx)
+            LOGGER.info('RSS on terminal ' + str(userIdx) + ': ' +
+                        str([utils.nat2db(a.rss) for a in self.ant]))
 
     def routine_optimize(self, time, env):
         AoA = 0

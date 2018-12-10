@@ -1,0 +1,19 @@
+{
+	"scenario": "subrealcity.json",
+	"drone": {"x": 230,  "y":200, "z": 100, "u": 0, "v": 0, "w": 0},
+	"terminals": [
+		{"x": 308, "y": 121, "z": 1.8, "u": 0, "v": 0, "w": 0}
+	],
+	"antenna-offsets": [0],
+	
+	"use-database": false,
+	"routine-algo": "scan",
+	"AoA-algo": "weighted-rss",
+	"max-iteration":1,
+
+	"simulation-output-csv": "/tmp/sim/flight.csv",
+	"CloudRT-output-dir": "/tmp/sim/CloudRT",
+
+	"matlab-quite-mode": false
+
+}

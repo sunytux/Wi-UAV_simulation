@@ -55,7 +55,7 @@ def main(inputDir, outputDir):
         f = open(os.path.join(outputDir, "flight.csv"), 'w')
         log = Logs(f, drone, terminals)
 
-        env = EnvironmentRF(outputDir, rt, log, terminals, drone)
+        env = EnvironmentRF(rt, log, terminals, drone)
 
         return drone, terminals, env, rt, log
 
