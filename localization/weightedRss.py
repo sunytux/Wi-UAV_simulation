@@ -19,6 +19,8 @@ import matplotlib.pyplot as plt
 from docopt import docopt
 import os
 import numpy as np
+import statistics
+from scipy.stats import norm
 
 USER = 4
 
@@ -82,7 +84,7 @@ def main(outputDir):
             elif error < np.deg2rad(-180):
                 error += np.deg2rad(360)
 
-            error = np.rad2deg(abs(error))
+            error = np.rad2deg(error)
 
             X.append(x)
             Y.append(y)
@@ -95,16 +97,65 @@ def main(outputDir):
             time += 1
     f.close()
 
-    plotWeakestUser(X, Y, U_AoA, V_AoA, U_AoU, V_AoU, ERR)
-
+    # Figure 1 map of the angle estimation error
+    plotAngleEstimationError(X, Y, U_AoA, V_AoA, U_AoU, V_AoU, ERR)
     plt.gcf().savefig(
-        os.path.join(outputDir, "bearing-error-user-" + str(USER)),
+        os.path.join(outputDir, "map-bearing-error-user-" + str(USER)),
+        bbox_inches='tight',
+        dpi=300
+    )
+
+    plt.gcf().clear()
+
+    # Figure 2 histogram of the angle estimation error
+    plotErrorHistogram(ERR)
+    plt.gcf().savefig(
+        os.path.join(outputDir, "histogram-bearing-error-user-" + str(USER)),
         bbox_inches='tight',
         dpi=300
     )
 
 
-def plotWeakestUser(X, Y, U_AoA, V_AoA, U_AoU, V_AoU, ERR):
+def plotErrorHistogram(ERR):
+    # Cosmetics
+    # plt.title("Bearing error")
+    plt.xlabel("Bearing error [$^\circ$]")
+    plt.ylabel("Normalized probability density function")
+
+    # Histogram
+    binSize = 5
+    plt.hist(
+        ERR,
+        bins=range(-180, 180 + binSize, binSize),
+        density=True,
+        label="histogram"
+    )
+
+    # Approched normal distribution
+    mean = statistics.mean(ERR)
+    stdev = statistics.stdev(ERR)
+    x_axis = np.arange(-180, 180, 0.1)
+
+    plt.plot(
+        x_axis, norm.pdf(x_axis, mean, stdev),
+        label="$ \mathcal{N} $"
+    )
+
+    # Approched normal distribution
+    ERR_simplified = filter(lambda x: abs(x) < 100, ERR)
+    mean = statistics.mean(ERR_simplified)
+    stdev = statistics.stdev(ERR_simplified)
+    x_axis = np.arange(-180, 180, 0.1)
+
+    plt.plot(
+        x_axis, norm.pdf(x_axis, mean, stdev),
+        label="$ \mathcal{N} $ w/o error > $ 100^\circ $"
+    )
+
+    plt.legend(loc="upper right")
+
+
+def plotAngleEstimationError(X, Y, U_AoA, V_AoA, U_AoU, V_AoU, ERR):
     # Cosmetics
     # plt.title("Bearing error")
     plt.xlabel("x [m]")
@@ -128,7 +179,7 @@ def plotWeakestUser(X, Y, U_AoA, V_AoA, U_AoU, V_AoU, ERR):
 
     # Weakest-user
     plot.plot_heatmap(
-        X, Y, ERR,
+        X, Y, map(abs, ERR),
         np.ones(len(X)) * STEP,
         np.ones(len(X)) * STEP,
         legend="Bearing error [$^\circ$]"
