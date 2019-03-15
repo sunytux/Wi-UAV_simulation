@@ -4,34 +4,101 @@
 """ Script for the validation of the 2nd block of the localisation process
 
 Usage:
-    validBlock2.py
+    validBlock2.py [-m MODE] -o DIR
+
+Arguments:
+    -o DIR          Output directory.
 
 Options:
     -h, --help
+    -m MODE         UAV trajectory mode.
 """
 from myTools.simulator import *
 from myTools import plot
 from myTools import utils
 from myTools import DEFAULT_CONF
 
+from docopt import docopt
 from scipy.stats import norm
 import matplotlib.pyplot as plt
 
 import math
-
+import random
 
 USER = 4
 STEP = 100
 
+MODE = "horiz"
 
-def run():
+EXP = DEFAULT_CONF
+EXP.update({
+    "routine-algo": "scan",
+    "AoA-algo": "weighted-rss"
+})
 
-    drone, terminals, env, rt, log = readConfig(DEFAULT_CONF)
+
+def main(mode, outputDir):
+
+    drone, terminals, env, rt, log = readConfig(EXP)
 
     memAoA = [[]] * len(terminals)
-    # for time in range(exp['max-iteration']):
-    i = 0
 
+    if mode == "grid":
+        gridTrajectory(drone, env, memAoA)
+    elif mode == "random":
+        randomTrajectory(drone, env, memAoA, 20)
+    elif mode == "horiz":
+        horizTrajectory(drone, env, memAoA, 20)
+    elif mode == "vert":
+        vertTrajectory(drone, env, memAoA, 20)
+
+    log.close()
+
+    # plotAoA(memAoA)
+    plotCostFct(memAoA)
+
+    plt.gcf().savefig(
+        os.path.join(outputDir, "cost-fct-user-" + str(USER)),
+        bbox_inches='tight',
+        dpi=300
+    )
+
+
+def randomTrajectory(drone, env, memAoA, iteration):
+    for i in range(iteration):
+        drone.x = (random.randint(0, drone.MAX_X) // 10) * 10
+        drone.y = (random.randint(0, drone.MAX_Y) // 10) * 10
+
+        env.scan(i, USER)
+        AoA = drone.getAoA()
+        memAoA[USER].append([drone.x, drone.y, AoA])
+
+
+def horizTrajectory(drone, env, memAoA, iteration):
+    drone.x = 100
+    drone.y = 350
+    for i in range(iteration):
+        env.scan(i, USER)
+        AoA = drone.getAoA()
+        memAoA[USER].append([drone.x, drone.y, AoA])
+
+        drone.x = (drone.x + 30) % drone.MAX_X
+        # drone.y += 30 % drone.MAX_Y
+
+
+def vertTrajectory(drone, env, memAoA, iteration):
+    drone.x = 100
+    drone.y = 50
+    for i in range(iteration):
+        env.scan(i, USER)
+        AoA = drone.getAoA()
+        memAoA[USER].append([drone.x, drone.y, AoA])
+
+        drone.y = (drone.y + 30) % drone.MAX_Y
+
+
+def gridTrajectory(drone, env, memAoA):
+    i = 0
     for x in range(0, 650, STEP):
         for y in range(0, 500, STEP):
             drone.x = x
@@ -40,19 +107,10 @@ def run():
             env.scan(i, USER)
             AoA = drone.getAoA()
             memAoA[USER].append([drone.x, drone.y, AoA])
-
-            # drone.x = (random.randint(0, drone.MAX_X) // 10) * 10
-            # drone.y = (random.randint(0, drone.MAX_Y) // 10) * 10
-
             i += 1
-    log.close()
-
-    # plotAoA(memAoA, exp)
-    plotCostFct(memAoA, exp)
 
 
-def plotCostFct(memAoA, exp):
-    stepGridSearch = STEP
+def plotCostFct(memAoA):
     stepGridSearch = 10
     X, Y, cost = [], [], []
 
@@ -68,11 +126,17 @@ def plotCostFct(memAoA, exp):
     y_hest = Y[hestIdx]
 
     plot.plot_scenario(edge='gainsboro', face='whitesmoke')
-    plot.plot_terminals(exp['terminals'])
+    plot.plot_terminals(EXP['terminals'])
 
     W = np.ones(len(X)) * stepGridSearch
     H = np.ones(len(X)) * stepGridSearch
 
+    # The trajectory
+    xUAV = [mem[0] for mem in memAoA[USER]]
+    yUAV = [mem[1] for mem in memAoA[USER]]
+    plt.plot(xUAV, yUAV, 'ko', markersize=2)
+
+    # The estimated Tx position
     plt.plot(x_hest, y_hest, marker="*", markersize=10,
              color='white', markeredgecolor='black')
 
@@ -80,8 +144,6 @@ def plotCostFct(memAoA, exp):
     plt.axis([0, 650, 0, 500])
 
     plot.plot_heatmap(X, Y, cost, W, H, legend="Cost")
-
-    plt.show()
 
 
 def costFctNormal(x, y, memAoA):
@@ -112,13 +174,8 @@ def costFctMSE(x, y, memAoA):
     cost = 0
 
     for xUAV, yUAV, aoa in memAoA[USER]:
-        aou = math.atan2(y - yUAV,
-                         x - xUAV)
-        error = aoa - aou
-        if error > np.deg2rad(180):
-            error -= np.deg2rad(360)
-        elif error < np.deg2rad(-180):
-            error += np.deg2rad(360)
+        aou = math.atan2(y - yUAV, x - xUAV)
+        error = utils.realAngle(aoa - aou)
 
         cost += error ** 2
 
@@ -140,8 +197,21 @@ def plotAoA(memAoA, exp):
     plt.axis('equal')
     plt.axis([0, 650, 0, 500])
 
-    plt.show()
+
+def args():
+    """Handle arguments for the main function."""
+
+    outputDir = docopt(__doc__)['-o']
+    if not os.path.exists(outputDir):
+        os.makedirs(outputDir)
+
+    if docopt(__doc__)['-m']:
+        mode = docopt(__doc__)['-m']
+    else:
+        mode = MODE
+
+    return [mode, outputDir]
 
 
 if __name__ == '__main__':
-    run()
+    main(*args())
