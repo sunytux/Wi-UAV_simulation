@@ -15,60 +15,33 @@ Options:
 from myTools.simulator import *
 from myTools import plot
 from myTools import utils
-import matplotlib.pyplot as plt
+from myTools import DEFAULT_CONF
+
 from docopt import docopt
-import os
 import numpy as np
-import statistics
+import matplotlib.pyplot as plt
 from scipy.stats import norm
-from scipy.stats import vonmises
 
-USER = 0
+import statistics
+import os
 
-LOG_FILE = "flight.csv"
-DB_FILE = "/home/sami/docs/phd/projects/04_wireless_UAV_simulator/data/"\
-          "ground-truth/ground-truth-map.csv"
-TERMINALS = [
-    {"x": 55, "y": 77, "z": 76, "u": 0, "v": 0, "w": 0},
-    {"x": 536, "y": 244, "z": 1.8, "u": 0, "v": 0, "w": 0},
-    {"x": 386, "y": 272, "z": 1.8, "u": 0, "v": 0, "w": 0},
-    {"x": 536, "y": 144, "z": 1.8, "u": 0, "v": 0, "w": 0},
-    {"x": 308, "y": 121, "z": 1.8, "u": 0, "v": 0, "w": 0}
-]
-
+USER = 4
 STEP = 10
+
+EXP = DEFAULT_CONF
+EXP.update({
+    "routine-algo": "scan",
+    "AoA-algo": "weighted-rss"
+})
 
 
 def main(outputDir):
 
-    f = open(os.path.join(outputDir, LOG_FILE), 'w')
-
-    terminals = []
-    for t in TERMINALS:
-        terminals.append(baseStation(t["x"], t["y"], t["z"],
-                                     t["u"], t["v"], t["w"]))
-
-    drone = Drone(0, 0, 0,
-                  0, 0, 0,
-                  len(terminals),
-                  # antOffset=np.deg2rad([0, 45, 90, 135, 180, 225, 270, 315]),
-                  routineAlgo="scan",
-                  AoAAlgo="weighted-rss")
-
-    rt = CloudRT_DataBase(TERMINALS, DB_FILE)
-
-    log = Logs(f, drone, terminals)
-
-    env = EnvironmentRF(rt, log, terminals, drone)
+    drone, terminals, env, rt, log = readConfig(EXP)
 
     time = 0
-    X = []
-    Y = []
-    U_AoA = []
-    V_AoA = []
-    U_AoU = []
-    V_AoU = []
-    ERR = []
+    X, Y, U_AoA, V_AoA, U_AoU, V_AoU, ERR = [], [], [], [], [], [], []
+
     for x in range(0, 650, STEP):
         for y in range(0, 500, STEP):
             drone.x = x
@@ -92,7 +65,7 @@ def main(outputDir):
             ERR.append(error)
 
             time += 1
-    f.close()
+    log.close()
 
     # Figure 1 map of the angle estimation error
     plotAngleEstimationError(X, Y, U_AoA, V_AoA, U_AoU, V_AoU, ERR)

@@ -9,80 +9,24 @@ Usage:
 Options:
     -h, --help
 """
-import matplotlib.pyplot as plt
-import math
-
-from scipy.stats import norm
-
 from myTools.simulator import *
 from myTools import plot
 from myTools import utils
+from myTools import DEFAULT_CONF
+
+from scipy.stats import norm
+import matplotlib.pyplot as plt
+
+import math
 
 
 USER = 4
-# MINIMUM_MEM = 10
 STEP = 100
 
-DB_FILE = "/home/sami/docs/phd/projects/04_wireless_UAV_simulator/data/"\
-          "ground-truth/ground-truth-map.csv"
-DEFAULT_CONF = {
-    # Setup
-    "scenario": "subrealcity.json",
-    "drone": {"x": 325, "y": 250, "z": 100, "u": 0, "v": 0, "w": 0},
-    "antenna-offsets": [0, 90, 180, 270],
-    "terminals": [
-        {"x": 55, "y": 77, "z": 76, "u": 0, "v": 0, "w": 0},
-        {"x": 536, "y": 244, "z": 1.8, "u": 0, "v": 0, "w": 0},
-        {"x": 386, "y": 272, "z": 1.8, "u": 0, "v": 0, "w": 0},
-        {"x": 536, "y": 144, "z": 1.8, "u": 0, "v": 0, "w": 0},
-        {"x": 308, "y": 121, "z": 1.8, "u": 0, "v": 0, "w": 0}
-    ],
 
-    # Algorithm options
-    "use-database": True,
-    "routine-algo": "locate2",
-    "AoA-algo": "weighted-rss",
-    "max-iteration": 20,
+def run():
 
-    # Output files
-    "simulation-output-csv": "/tmp/sim/flight.csv",
-    "CloudRT-output-dir": "/tmp/sim/CloudRT",
-
-    # Logs flags
-    "matlab-quite-mode": True
-}
-
-
-def run(exp):
-    f = open(exp['simulation-output-csv'], 'w')
-
-    terminals = []
-    for t in exp['terminals']:
-        terminals.append(
-            baseStation(t["x"], t["y"], t["z"], t["u"], t["v"], t["w"])
-        )
-
-    drone = Drone(
-        exp["drone"]["x"], exp["drone"]["y"], exp["drone"]["z"],
-        exp["drone"]["u"], exp["drone"]["v"], exp["drone"]["w"],
-        len(terminals),
-        antOffset=np.deg2rad(exp["antenna-offsets"]),
-        routineAlgo=exp["routine-algo"],
-        AoAAlgo=exp["AoA-algo"]
-    )
-
-    if exp['use-database']:
-        rt = CloudRT_DataBase(exp['terminals'], DB_FILE)
-    else:
-        rt = CloudRT(
-            exp['CloudRT-output-dir'],
-            scenario=exp["scenario"],
-            quiteMode=exp["matlab-quite-mode"]
-        )
-
-    log = Logs(f, drone, terminals)
-
-    env = EnvironmentRF(rt, log, terminals, drone)
+    drone, terminals, env, rt, log = readConfig(DEFAULT_CONF)
 
     memAoA = [[]] * len(terminals)
     # for time in range(exp['max-iteration']):
@@ -101,7 +45,7 @@ def run(exp):
             # drone.y = (random.randint(0, drone.MAX_Y) // 10) * 10
 
             i += 1
-    f.close()
+    log.close()
 
     # plotAoA(memAoA, exp)
     plotCostFct(memAoA, exp)
@@ -200,4 +144,4 @@ def plotAoA(memAoA, exp):
 
 
 if __name__ == '__main__':
-    run(DEFAULT_CONF)
+    run()

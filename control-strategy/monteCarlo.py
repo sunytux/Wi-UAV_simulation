@@ -11,9 +11,12 @@ Arguments:
 Options:
     -h, --help
 """
-from myTools import utils
 import simTrajectory
+from myTools import utils
+from myTools import DEFAULT_CONF
+
 import numpy as np
+
 import os
 import tempfile
 
@@ -23,10 +26,16 @@ STEP = 10
 
 N = 1000
 
-INITIAL_CONF = 'job_sample/monteCarlo.json'
 OUTPUT_DIR = 'output'
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
+
+EXP = DEFAULT_CONF
+EXP.update({
+    "routine-algo": "optimize",
+    "AoA-algo": "weighted-rss",
+    "max-iteration": 12,
+})
 
 
 def main():
@@ -35,7 +44,7 @@ def main():
 
     i = 0
     for x, y in zip(xRand, yRand):
-        exp = utils.readJson(INITIAL_CONF)
+        exp = EXP
         exp['drone']['x'] = x
         exp['drone']['y'] = y
         exp['simulation-output-csv'] = tempfile.NamedTemporaryFile(

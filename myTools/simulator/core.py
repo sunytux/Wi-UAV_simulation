@@ -30,6 +30,7 @@ Options:
 import math
 import numpy as np
 
+from CloudRT import *
 from myTools import LOGGER
 from myTools import utils
 
@@ -72,6 +73,9 @@ class Logs(object):
         lineFmt = "{:d},{:s}" + ",{:.16f}" * (len(row) - 2) + '\n'
 
         self.logFile.write(lineFmt.format(*row))
+
+    def close(self):
+        self.logFile.close()
 
 
 class Antenna(object):
@@ -282,3 +286,37 @@ class Drone(Terminal):
                 phi1 += np.deg2rad(360)
 
         return (rss1 * phi1 + rss2 * phi2) / (rss1 + rss2)
+
+
+def readConfig(exp):
+    f = open(exp['simulation-output-csv'], 'w')
+
+    terminals = []
+    for t in exp['terminals']:
+        terminals.append(
+            baseStation(t["x"], t["y"], t["z"], t["u"], t["v"], t["w"])
+        )
+
+    drone = Drone(
+        exp["drone"]["x"], exp["drone"]["y"], exp["drone"]["z"],
+        exp["drone"]["u"], exp["drone"]["v"], exp["drone"]["w"],
+        len(terminals),
+        antOffset=np.deg2rad(exp["antenna-offsets"]),
+        routineAlgo=exp["routine-algo"],
+        AoAAlgo=exp["AoA-algo"]
+    )
+
+    if exp['use-database']:
+        rt = CloudRT_DataBase(exp['terminals'], exp['use-database'])
+    else:
+        rt = CloudRT(
+            exp['CloudRT-output-dir'],
+            scenario=exp["scenario"],
+            quiteMode=exp["matlab-quite-mode"]
+        )
+
+    log = Logs(f, drone, terminals)
+
+    env = EnvironmentRF(rt, log, terminals, drone)
+
+    return drone, terminals, env, rt, log
