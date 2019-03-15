@@ -181,14 +181,15 @@ class Drone(Terminal):
         self.AoAAlgo = AoAAlgo
 
         for offset in self.antOffset:
-            # TODO check 90 + 45
             self._addAntenna(np.deg2rad(90) + offset, np.deg2rad(90 + 45), 0)
 
     def routine(self, time, env):
         if self.routineAlgo == "locate":
             self.routine_locate(time, env)
+
         elif self.routineAlgo == "optimize":
             self.routine_optimize(time, env)
+
         elif self.routineAlgo == "scan":
             self.routine_scan(time, env)
 
@@ -227,10 +228,10 @@ class Drone(Terminal):
         self.y = self.MAX_Y if self.y > self.MAX_Y else self.y
 
     def routine_locate(self, time, env):
-        # TODO add support for choosing which user to locate
+        USER = 1  # TODO add support for other users
 
         # Drone-user
-        env.scan(time, 1)
+        env.scan(time, USER)
         AoA = self.getAoA()
         maxRss = max([a.rss for a in self.ant])
 
@@ -247,6 +248,7 @@ class Drone(Terminal):
     def getAoA(self):
         if self.AoAAlgo == "max-rss":
             return self.getAoA_maxRSS()
+
         elif self.AoAAlgo == "weighted-rss":
             return self.getAoA_weightedRSS()
 

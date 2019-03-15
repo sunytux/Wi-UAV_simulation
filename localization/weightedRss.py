@@ -21,8 +21,9 @@ import os
 import numpy as np
 import statistics
 from scipy.stats import norm
+from scipy.stats import vonmises
 
-USER = 4
+USER = 0
 
 LOG_FILE = "flight.csv"
 DB_FILE = "/home/sami/docs/phd/projects/04_wireless_UAV_simulator/data/"\
@@ -78,11 +79,7 @@ def main(outputDir):
             aou = math.atan2(terminals[USER].y - drone.y,
                              terminals[USER].x - drone.x)
 
-            error = aoa - aou
-            if error > np.deg2rad(180):
-                error -= np.deg2rad(360)
-            elif error < np.deg2rad(-180):
-                error += np.deg2rad(360)
+            error = utils.realAngle(aoa - aou)
 
             error = np.rad2deg(error)
 
@@ -128,28 +125,73 @@ def plotErrorHistogram(ERR):
         ERR,
         bins=range(-180, 180 + binSize, binSize),
         density=True,
-        label="histogram"
+        label="histogram",
+        alpha=0.2
     )
 
-    # Approched normal distribution
-    mean = statistics.mean(ERR)
-    stdev = statistics.stdev(ERR)
-    x_axis = np.arange(-180, 180, 0.1)
+    # normal distribution
+    # mean = statistics.mean(ERR)
+    # stdev = statistics.stdev(ERR)
+    # x_axis = np.arange(-180, 180, 0.1)
 
-    plt.plot(
-        x_axis, norm.pdf(x_axis, mean, stdev),
-        label="$ \mathcal{N} $"
-    )
+    # label = "$ \mathcal{N} $\n" + \
+    #         "$ \mu = {:.3f} $,\n$ \sigma = {:.3f} $".format(mean, stdev)
+    # plt.plot(
+    #     x_axis, norm.pdf(x_axis, mean, stdev),
+    #     label=label
+    # )
 
     # Approched normal distribution
     ERR_simplified = filter(lambda x: abs(x) < 100, ERR)
+    density_correction = float(len(ERR_simplified)) / len(ERR)
+    print(density_correction)
+
     mean = statistics.mean(ERR_simplified)
     stdev = statistics.stdev(ERR_simplified)
     x_axis = np.arange(-180, 180, 0.1)
+    y_axis = np.array(norm.pdf(x_axis, mean, stdev)) * density_correction
 
+    label = "$ \mathcal{N} $ oronly > $ 100^\circ $\n" + \
+            "$ \mu = {:.3f} $,\n$ \sigma = {:.3f} $".format(mean, stdev)
     plt.plot(
-        x_axis, norm.pdf(x_axis, mean, stdev),
-        label="$ \mathcal{N} $ w/o error > $ 100^\circ $"
+        x_axis, y_axis,
+        label=label
+    )
+
+    # Approched 2nd lobe w/ von mises
+    # ERR_2 = filter(lambda x: abs(x) > 100, ERR)
+    # ERR_2 = map(lambda a: (360 + a) % 360, ERR_2)
+
+    # kappa, loc, scale = vonmises.fit(np.deg2rad(ERR_2), fscale=1)
+    # print(kappa, loc, scale)
+
+    # x_axis = np.arange(-180, 180, 0.1)
+
+    # label = "von mises"
+    # plt.plot(
+    #     x_axis, vonmises.pdf(np.deg2rad(x_axis), kappa, loc=loc, scale=scale),
+    #     label=label
+    # )
+
+    # Approched 2nd lobe w/ von mises
+    ERR_2 = filter(lambda x: abs(x) > 100, ERR)
+    ERR_2 = map(lambda a: (360 + a) % 360, ERR_2)
+    density_correction = float(len(ERR_2)) / len(ERR)
+    print(density_correction)
+
+    mean = utils.realAngle(statistics.mean(ERR_2), deg=True)
+    stdev = statistics.stdev(ERR_2)
+    x_axis = np.arange(-180, 180, 0.1)
+
+    label = "$ \mathcal{N} $ only < $ 100^\circ $\n" + \
+            "$ \mu = {:.3f} $,\n$ \sigma = {:.3f} $".format(mean, stdev)
+
+    y_axis = np.array(
+        norm.pdf(map(lambda a: (360 + a) % 360, x_axis), mean, stdev)
+    ) * density_correction
+    plt.plot(
+        x_axis, y_axis,
+        label=label
     )
 
     plt.legend(loc="upper right")
