@@ -56,6 +56,9 @@ def plot_heatmap(x, y, z, w, h, legend=False):
        all arguments are numpy array except legend which is a string
     """
 
+    if type(z).__module__ != np.__name__:
+        z = np.array(z)
+
     z_nom = (z - min(z)) / (max(z) - min(z))
 
     for i in range(len(x)):

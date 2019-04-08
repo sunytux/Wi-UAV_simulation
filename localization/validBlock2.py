@@ -29,6 +29,13 @@ USER = 4
 STEP = 100
 
 MODE = "horiz"
+USE_DB = False
+
+MU1 = np.deg2rad(-0.03)  # RADIAN !
+SIGMA1 = np.deg2rad(27.011)
+MU2 = np.deg2rad(178.684)
+SIGMA2 = np.deg2rad(28.324)
+ALPHA = 0.905538461538
 
 EXP = DEFAULT_CONF
 EXP.update({
@@ -75,7 +82,7 @@ def randomTrajectory(drone, env, memAoA, iteration):
 
 
 def horizTrajectory(drone, env, memAoA, iteration):
-    drone.x = 100
+    drone.x = 50
     drone.y = 350
     for i in range(iteration):
         env.scan(i, USER)
@@ -83,18 +90,17 @@ def horizTrajectory(drone, env, memAoA, iteration):
         memAoA[USER].append([drone.x, drone.y, AoA])
 
         drone.x = (drone.x + 30) % drone.MAX_X
-        # drone.y += 30 % drone.MAX_Y
 
 
 def vertTrajectory(drone, env, memAoA, iteration):
     drone.x = 100
-    drone.y = 50
+    drone.y = 20
     for i in range(iteration):
         env.scan(i, USER)
         AoA = drone.getAoA()
         memAoA[USER].append([drone.x, drone.y, AoA])
 
-        drone.y = (drone.y + 30) % drone.MAX_Y
+        drone.y = (drone.y + 25) % drone.MAX_Y
 
 
 def gridTrajectory(drone, env, memAoA):
@@ -134,7 +140,7 @@ def plotCostFct(memAoA):
     # The trajectory
     xUAV = [mem[0] for mem in memAoA[USER]]
     yUAV = [mem[1] for mem in memAoA[USER]]
-    plt.plot(xUAV, yUAV, 'ko', markersize=2)
+    plt.plot(xUAV, yUAV, 'ko', markersize=3, color='white')
 
     # The estimated Tx position
     plt.plot(x_hest, y_hest, marker="*", markersize=10,
@@ -147,12 +153,6 @@ def plotCostFct(memAoA):
 
 
 def costFctNormal(x, y, memAoA):
-    MU1 = np.deg2rad(-0.03)  # RADIAN !
-    SIGMA1 = np.deg2rad(27.011)
-    MU2 = np.deg2rad(178.684)
-    SIGMA2 = np.deg2rad(28.324)
-    alpha = 0.905538461538
-
     cost = 1
 
     for xUAV, yUAV, aoa in memAoA[USER]:
@@ -162,10 +162,14 @@ def costFctNormal(x, y, memAoA):
         diffMu1 = utils.realAngle(error - MU1)
         diffMu2 = utils.realAngle(error - MU2)
 
-        term = alpha * norm.pdf(diffMu1, 0, SIGMA1) +\
-            (1 - alpha) * norm.pdf(diffMu2, 0, SIGMA2)
+        term = ALPHA * norm.pdf(diffMu1, 0, SIGMA1) +\
+            (1 - ALPHA) * norm.pdf(diffMu2, 0, SIGMA2)
 
         cost *= term
+
+    if USE_DB:
+        cost = utils.nat2db(cost)
+
     return cost
 
 
