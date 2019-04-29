@@ -115,7 +115,8 @@ def plot_terminals(terminals, bsOpt={}, userOpt={}):
 
     for i in range(len(terminals)):
         opt = defaultBsOpt if i == 0 else defaultUserOpt
-        plt.plot(terminals[i][:, 0], terminals[i][:, 1], **opt)
+        t = np.atleast_2d(terminals[i])
+        plt.plot(t[:, 0], t[:, 1], **opt)
 
 
 def plot_flight(drone, iOpt={}, fOpt={}, insideOpt={}):

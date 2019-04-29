@@ -9,6 +9,7 @@ import shutil
 import zipfile
 import os
 import math
+from functools import wraps
 
 
 def writeJson(jsonFile, data):
@@ -95,3 +96,20 @@ def realAngle(alpha, deg=False):
         alpha = pi - (alpha % pi)
 
     return alpha
+
+
+def add_method(cls):
+    """Dynamically Add a Method to a Class [1]
+
+    [1] See: https://medium.com/@mgarod/dynamically-add-a-method-to-a-class-in-python-c49204b85bd6
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            return func(self, *args, **kwargs)
+        setattr(cls, func.__name__, wrapper)
+        # Note we are not binding func, but wrapper which accepts self but does
+        # exactly the same as func
+        return func
+
+    return decorator

@@ -29,7 +29,7 @@ USER = 4
 STEP = 100
 
 MODE = "horiz"
-USE_DB = False
+USE_DBm = False
 
 MU1 = np.deg2rad(-0.03)  # RADIAN !
 SIGMA1 = np.deg2rad(27.011)
@@ -167,7 +167,7 @@ def costFctNormal(x, y, memAoA):
 
         cost *= term
 
-    if USE_DB:
+    if USE_DBm:
         cost = utils.nat2db(cost)
 
     return cost

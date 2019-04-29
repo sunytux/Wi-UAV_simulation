@@ -190,7 +190,7 @@ def plotAngleEstimationError(X, Y, U_AoA, V_AoA, U_AoU, V_AoU, ERR):
         "color": 'white',
         "markeredgecolor": 'black'
     }
-    plot.plot_terminals([TERMINALS[USER]], bsOpt=opt)
+    plot.plot_terminals([EXP["terminals"][USER]], bsOpt=opt)
 
     # Weakest-user
     plot.plot_heatmap(
