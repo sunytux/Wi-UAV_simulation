@@ -206,7 +206,7 @@ class UnscentedKalmanFilter(object):
                 Z = np.zeros((len(zj), self._sigma_pts.shape[1]))
             Z[:,j] = zj
         zbar = Z.dot(self._weight_m)
-        Pz = self._sigma_pt_covariance(Z,zbar,fix_angles=False)
+        Pz = self._sigma_pt_covariance(Z,zbar,fix_angles=False, fix_angles_z=True)
         _check_covariance(Pz)
         Pxz = self._sigma_pt_covariance(self._sigma_pts[:self._ss,:],self._state,
                                         pts2=Z,mean2=zbar)
@@ -278,12 +278,18 @@ class UnscentedKalmanFilter(object):
             self._sigma_pt_covariance(self._sigma_pts[:self._ss,:], self._state)
 
 
-    def _sigma_pt_covariance(self, pts, mean, fix_angles=True, pts2=None, mean2=None):
+    def _sigma_pt_covariance(self, pts, mean, fix_angles=True, pts2=None, mean2=None, fix_angles_z=False):
         cov = None
         for j in range(pts.shape[1]):
             diff = pts[:,j] - mean
             if fix_angles:
                 self._ang_fix(diff)
+
+            # This assumes that every measures should be angles
+            # change from original code
+            if fix_angles_z:
+                diff = angular_fix(diff)
+
             if pts2 is not None:
                 diff2 = pts2[:,j] - mean2
             else:
