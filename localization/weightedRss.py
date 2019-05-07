@@ -25,7 +25,7 @@ from scipy.stats import norm
 import statistics
 import os
 
-USER = 4
+USER = 0
 STEP = 10
 
 EXP = DEFAULT_CONF
@@ -33,6 +33,10 @@ EXP.update({
     "routine-algo": "scan",
     "AoA-algo": "weighted-rss"
 })
+
+
+# plt config
+DPI = 500  # 300
 
 
 def main(outputDir):
@@ -72,7 +76,7 @@ def main(outputDir):
     plt.gcf().savefig(
         os.path.join(outputDir, "map-bearing-error-user-" + str(USER)),
         bbox_inches='tight',
-        dpi=300
+        dpi=DPI
     )
 
     plt.gcf().clear()
@@ -82,7 +86,7 @@ def main(outputDir):
     plt.gcf().savefig(
         os.path.join(outputDir, "histogram-bearing-error-user-" + str(USER)),
         bbox_inches='tight',
-        dpi=300
+        dpi=DPI
     )
 
 
@@ -172,7 +176,7 @@ def plotErrorHistogram(ERR):
 
 def plotAngleEstimationError(X, Y, U_AoA, V_AoA, U_AoU, V_AoU, ERR):
     # Cosmetics
-    # plt.title("Bearing error")
+    plt.title("Bearing error")
     plt.xlabel("x [m]")
     plt.ylabel("y [m]")
     plt.grid(linestyle=':', linewidth=1, color='gainsboro')
@@ -192,7 +196,6 @@ def plotAngleEstimationError(X, Y, U_AoA, V_AoA, U_AoU, V_AoU, ERR):
     }
     plot.plot_terminals([EXP["terminals"][USER]], bsOpt=opt)
 
-    # Weakest-user
     plot.plot_heatmap(
         X, Y, map(abs, ERR),
         np.ones(len(X)) * STEP,
