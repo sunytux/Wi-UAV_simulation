@@ -20,6 +20,7 @@ import ukflib
 from myTools import plot
 from myTools import DEFAULT_CONF
 from myTools.simulator import *
+from myTools import utils
 
 from docopt import docopt
 import matplotlib.pyplot as plt
@@ -27,19 +28,32 @@ import matplotlib.cm as cm
 
 
 USER = 4
-TRAJECTORY = "vert"
-TRAJECTORY_STEP = 2
+TX_GUESS_X, TX_GUESS_Y = 300, 250  # 300, 200
+
+TRAJECTORY = "square"
+TRAJECTORY_STEP = 10
+# TOP, BOTTOM, LEFT, RIGHT = 450, 50, 400, 500
+TOP, BOTTOM, LEFT, RIGHT = 470, 30, 30, 620
+
+# RN = np.deg2rad(27.011)
+RN = np.deg2rad(57)
+RV = 10  # 0.5
+
 
 EXP = DEFAULT_CONF
 EXP.update({
-    "drone": {"x": 100, "y": 450, "z": 100, "u": 0, "v": 0, "w": 0},
-    "routine-algo": "locate",  # This should be unnecessary
+    "drone": {"x": LEFT, "y": TOP, "z": 100, "u": 0, "v": 0, "w": 0},
+    "routine-algo": "locate",  # This shouldn't be necessary
     "AoA-algo": "weighted-rss",
-    "max-iteration": 40 * 5,
+    "max-iteration": 4 * ((TOP - BOTTOM) // TRAJECTORY_STEP +
+                          (RIGHT - LEFT) // TRAJECTORY_STEP) * 1
+    # "max-iteration": 50,
 })
 
 MAX_X = 650
 MAX_Y = 500
+
+USE_FAKE_MEASURMENTS = False  # Uses Atan2 + random noise instead of CloudRT
 
 # plt config
 DPI = 500  # 300
@@ -70,21 +84,56 @@ def measurement(state, noise, xUav, yUav):
 
     z = math.atan2(state[1] - yUav,
                    state[0] - xUav) + noise
-    z = ukflib.angular_fix(z)
+    z = utils.realAngle(z)
 
     return z
 
 
+def fakeMeasurement(uav_truth, tx_truth, Rn):
+    import random
+    noise = random.gauss(0, Rn**0.5)
+    xUav, yUav = uav_truth
+    xTx, yTx = tx_truth
+
+    z = math.atan2(yTx - yUav, xTx - xUav) + noise
+    z = ukflib.angular_fix(z)
+
+    return [z]
+
+
 def uavTrajectory(drone):
-    if TRAJECTORY == "horiz":
+    def goRight():
         drone.x = (drone.x + TRAJECTORY_STEP) % drone.MAX_X
         drone.y = (drone.y - 0) % drone.MAX_Y
-    elif TRAJECTORY == "vert":
+
+    def goDown():
         drone.x = (drone.x + 0) % drone.MAX_X
         drone.y = (drone.y - TRAJECTORY_STEP) % drone.MAX_Y
+
+    def goUp():
+        drone.x = (drone.x + 0) % drone.MAX_X
+        drone.y = (drone.y + TRAJECTORY_STEP) % drone.MAX_Y
+
+    def goLeft():
+        drone.x = (drone.x - TRAJECTORY_STEP) % drone.MAX_X
+        drone.y = (drone.y - 0) % drone.MAX_Y
+
+    if TRAJECTORY == "horiz":
+        goRight()
+    elif TRAJECTORY == "vert":
+        goDown()
     elif TRAJECTORY == "diag":
         drone.x = (drone.x + TRAJECTORY_STEP) % drone.MAX_X
         drone.y = (drone.y - TRAJECTORY_STEP) % drone.MAX_Y
+    elif TRAJECTORY == "square":
+        if drone.x == LEFT and drone.y > BOTTOM:
+            goDown()
+        elif drone.y == BOTTOM and drone.x < RIGHT:
+            goRight()
+        elif drone.x == RIGHT and drone.y < TOP:
+            goUp()
+        elif drone.y == TOP and drone.x > LEFT:
+            goLeft()
 
 
 def run(exp, outputDir):
@@ -96,13 +145,13 @@ def run(exp, outputDir):
         [EXP["terminals"][USER]["x"], EXP["terminals"][USER]["y"]]
     ]
     tx_ukf = np.array([
-        # [drone.MAX_X / 2, drone.MAX_Y / 2]  # Tx 1st guess is middle of the map
-        [300, 200]  # Tx 1st guess is middle of the map
+        [TX_GUESS_X, TX_GUESS_Y]
     ])
     L = 2  # State dimension (xTx and yTx)
-    Rv = np.diag([1, 1])  # Process noise: randomly  "small" positive
-    Rn = np.diag([np.deg2rad(27.011)])  # Measurmement noise
-    Rn = np.diag([np.deg2rad(15)])  # Measurmement noise
+    # Process noise, no physical meaning, it just represents how much you trust
+    # your model
+    Rv = np.diag([RV, RV])
+    Rn = np.diag([RN])  # Measurmement noise
 
     drone.ukf = ukflib.UnscentedKalmanFilter(
         L, Rv, Rn,
@@ -110,6 +159,8 @@ def run(exp, outputDir):
         kappa=0,
         alpha=1.0,
         beta=2,
+        angle_mask=[0, 0],  # state xTx and yTx are not angles
+        init_covariance=np.eye(2) * 250
     )
 
     # Errors init
@@ -122,16 +173,20 @@ def run(exp, outputDir):
         self.ukf.predict(predict)
 
         # Step 2 correction
-        env.scan(time, USER)
-        z = ukflib.angular_fix(self.getAoA())
+        if USE_FAKE_MEASURMENTS:
+            z = fakeMeasurement(uav_truth[-1], tx_truth[-1], Rn[0, 0])
+        else:
+            env.scan(time, USER)
+            z = utils.realAngle(self.getAoA())
+
         self.ukf.update(measurement, z, self.x, self.y)
 
         # Log errors
         thetaReal = measurement(tx_truth[-1], 0, self.x, self.y)
         thetaUkf = measurement(drone.ukf.state[:2], 0, self.x, self.y)
-        thetaWeiRss = ukflib.angular_fix(drone.getAoA())
-        weightedRssErr.append(abs(ukflib.angular_fix(thetaWeiRss - thetaReal)))
-        ukfErr.append(abs(ukflib.angular_fix(thetaUkf - thetaReal)))
+        thetaWeiRss = utils.realAngle(drone.getAoA())
+        weightedRssErr.append(abs(utils.realAngle(thetaWeiRss - thetaReal)))
+        ukfErr.append(abs(utils.realAngle(thetaUkf - thetaReal)))
 
     for i in range(exp['max-iteration']):
         drone.routine_locate_kalman(i, env)
@@ -144,13 +199,14 @@ def run(exp, outputDir):
         tx_truth.append(tx_truth[-1])
         uav_truth.append([drone.x, drone.y])
 
+    log.close()
+
     tx_truth = np.array(tx_truth)
     uav_truth = np.array(uav_truth)
 
     # Figure 1 Tx localization on map
     plotFig(tx_ukf, tx_truth, uav_truth)
     figName = "ukf-loc-user-" + str(USER) + "-traj-" + TRAJECTORY
-
     plt.gcf().savefig(
         os.path.join(outputDir, figName),
         bbox_inches='tight',
@@ -167,8 +223,6 @@ def run(exp, outputDir):
         bbox_inches='tight',
         dpi=DPI
     )
-
-    log.close()
 
 
 def plotError(weightedRssErr, ukfErr):
