@@ -10,6 +10,7 @@ import zipfile
 import os
 import math
 from functools import wraps
+import numpy as np
 
 
 def writeJson(jsonFile, data):
@@ -83,19 +84,19 @@ def getRss(re, im):
     return 10 * math.log10(math.pow(re, 2.0) + math.pow(im, 2.0))
 
 
-def realAngle(alpha, deg=False):
+def realAngle(a, deg=False):
     if deg:
         pi = 180
     else:
-        pi = math.pi
+        pi = np.pi
 
-    alpha %= 2 * pi
-    if alpha > pi:
-        alpha = -pi + (alpha % pi)
-    elif alpha < -pi:
-        alpha = pi - (alpha % pi)
-
-    return alpha
+    fix = np.mod(np.mod(a, 2 * pi) + 2 * pi, 2 * pi)
+    if np.isscalar(fix):
+        if fix > pi:
+            fix -= 2 * pi
+    else:
+        fix[fix > pi] -= 2 * pi
+    return fix
 
 
 def add_method(cls):
