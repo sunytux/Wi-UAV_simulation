@@ -129,12 +129,14 @@ def plot_flight(drone, iOpt={}, fOpt={}, insideOpt={}):
         "marker": "x",
         "color": 'black',
         "markersize": 10,
-        "mew": 4
+        "markeredgewidth": 4,
+        "zorder": 5
     }
     defaultfOpt = {
         "marker": "v",
         "color": 'black',
-        "markersize": 10
+        "markersize": 10,
+        "zorder": 5
     }
     defaultinsideOpt = {
         "color": 'gainsboro',

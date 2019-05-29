@@ -33,10 +33,12 @@ import numpy as np
 from CloudRT import *
 from myTools import LOGGER
 from myTools import utils
+import ukflib
 
 
 class Logs(object):
     """docstring for Logs"""
+
     def __init__(self, logFile, drone, terminals):
         self.logFile = logFile
         header = self._makeHeader(drone, terminals)
@@ -80,6 +82,7 @@ class Logs(object):
 
 class Antenna(object):
     """docstring for Antenna"""
+
     def __init__(self, u, v, w):
         self.Re = 0  # I
         self.Im = 0  # Q
@@ -105,6 +108,7 @@ class Antenna(object):
 
 class Terminal(object):
     """docstring for Terminal"""
+
     def __init__(self, x, y, z, u, v, w):
         self.x = x
         self.y = y
@@ -121,6 +125,7 @@ class Terminal(object):
 
 class baseStation(Terminal):
     """docstring for baseStation"""
+
     def __init__(self, x, y, z, u, v, w):
         Terminal.__init__(self, x, y, z, u, v, w)
 
@@ -129,6 +134,7 @@ class baseStation(Terminal):
 
 class EnvironmentRF(object):
     """docstring for EnvironmentRF"""
+
     def __init__(self, rt, log, terminals, drone):
 
         self.terminals = terminals
@@ -166,6 +172,7 @@ class EnvironmentRF(object):
 
 class Drone(Terminal):
     """docstring for Drone"""
+
     DEFAULT_ANTENNAS_OFFSET = np.deg2rad([0, 90, 180, 270])
 
     # TODO make it map agnostic
@@ -175,6 +182,7 @@ class Drone(Terminal):
     def __init__(self, x, y, z, u, v, w, nbUsers,
                  antOffset=DEFAULT_ANTENNAS_OFFSET,
                  routineAlgo="locate",
+                 routineKwargs={},
                  AoAAlgo="weighted-rss"):
         Terminal.__init__(self, x, y, z, u, v, w)
 
@@ -182,10 +190,14 @@ class Drone(Terminal):
         self.antOffset = antOffset
 
         self.routineAlgo = routineAlgo
+        self.routineKwargs = routineKwargs
         self.AoAAlgo = AoAAlgo
 
         for offset in self.antOffset:
             self._addAntenna(np.deg2rad(90) + offset, np.deg2rad(90 + 45), 0)
+
+        if routineAlgo == "locate_kalman":
+            self.ukf = self._init_kalman_routine()
 
     def routine(self, time, env):
         if self.routineAlgo == "locate":
@@ -196,6 +208,9 @@ class Drone(Terminal):
 
         elif self.routineAlgo == "scan":
             self.routine_scan(time, env)
+
+        elif routineAlgo == "locate_kalman":
+            self.routine_locate_kalman(time, env)
 
     def routine_scan(self, time, env):
         for userIdx in range(self.nbUsers):
@@ -287,6 +302,69 @@ class Drone(Terminal):
 
         return (rss1 * phi1 + rss2 * phi2) / (rss1 + rss2)
 
+    def _init_kalman_routine(self):
+        processNoise = self.routineKwargs["processNoise"]
+        measurementNoise = self.routineKwargs["measurementNoise"]
+        sigma0 = self.routineKwargs["sigma0"]
+        firstGuess = self.routineKwargs["firstGuess"]
+
+        P0 = np.eye(2) * sigma0 ** 2
+
+        L = 2  # State dimension (xTx and yTx)
+        # Process noise, no physical meaning, it just represents how much you
+        # trust your model
+        Rv = np.diag([processNoise, processNoise])
+        Rn = np.diag([measurementNoise])
+
+        return ukflib.UnscentedKalmanFilter(
+            L, Rv, Rn,
+            init_state=firstGuess,
+            kappa=0,
+            alpha=1.0,
+            beta=2,
+            angle_mask=[0, 0],  # state xTx and yTx are not angles
+            init_covariance=P0
+        )
+
+    def routine_locate_kalman(self, time, env):
+        # Step 1 prediction
+        self.ukf.predict(self._locate_kalman_predict)
+
+        # Step 2 correction
+        env.scan(time, self.routineKwargs["user"])
+        z = utils.realAngle(self.getAoA())
+
+        self.ukf.update(self._locate_kalman_measurement, z, self.x, self.y)
+
+    def _locate_kalman_predict(self, state, noise):
+        """Propagation function callback.
+
+        Args
+            state and noise
+
+        Returns
+            The next state.
+
+        """
+
+        return state + noise
+
+    def _locate_kalman_measurement(self, state, noise, xUav, yUav):
+        """Measurement function callback.
+
+        Args
+            state and noise.
+
+        Returns
+            The measurement.
+
+        """
+        z = math.atan2(state[1] - yUav,
+                       state[0] - xUav) + noise
+        z = utils.realAngle(z)
+
+        return z
+
 
 def readConfig(exp):
     f = open(exp['simulation-output-csv'], 'w')
@@ -303,6 +381,7 @@ def readConfig(exp):
         len(terminals),
         antOffset=np.deg2rad(exp["antenna-offsets"]),
         routineAlgo=exp["routine-algo"],
+        routineKwargs=exp["routineKwargs"],
         AoAAlgo=exp["AoA-algo"]
     )
 

@@ -29,6 +29,7 @@ DEFAULT_CONF = {
     "use-database": "/home/sami/docs/phd/projects/04_wireless_UAV_simulator/"\
                     "data/ground-truth/ground-truth-map.csv",
     "routine-algo": "optimize",
+    "routineKwargs": {},
     "AoA-algo": "weighted-rss",
     "max-iteration": 12,
 
