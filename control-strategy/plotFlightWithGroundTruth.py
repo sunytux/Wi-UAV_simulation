@@ -1,10 +1,10 @@
 #! /usr/bin/python2.7 -u
 # -*- coding: utf-8 -*-
 
-"""Plot and save figures of flight logs.
+"""Plot and save figures of flight logs superposed on ground truth heat map.
 
 Usage:
-    plot.py -d <FLIGHT_LOG> -o DIR
+    plotFlightWithGroundTruth.py -d <FLIGHT_LOG> -o DIR
 
 Arguments:
     -d <FLIGHT_LOG>  Path to flight logs.
@@ -24,7 +24,7 @@ from myTools import plot
 import pandas as pd
 
 
-DB_FILE = "/home/sami/docs/phd/projects/04_wireless_UAV_simulator/data/ground-truth/ground-truth-map.csv"
+DB_FILE = "/home/sami/docs/phd/projects/04_wi-uav_simulation/data/ground-truth/ground-truth-map.csv"
 STEP = 10
 
 

@@ -4,7 +4,7 @@
 """Plot and save figures of flight logs.
 
 Usage:
-    plot.py -d <FLIGHT_LOG> -o DIR
+    plotFlightLogs.py -d <FLIGHT_LOG> -o DIR
 
 Arguments:
     -d <FLIGHT_LOG>  Path to flight logs.

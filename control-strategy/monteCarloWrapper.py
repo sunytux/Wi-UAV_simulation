@@ -1,10 +1,12 @@
 #! /usr/bin/python2.7 -u
 # -*- coding: utf-8 -*-
 
-"""TODO
+"""Execute batch of Monte Carlo simulations for a given control strategy.
+
+The control strategy is hard codded.
 
 Usage:
-    monteCarlo.py
+    monteCarloWrapper.py
 
 Arguments:
 

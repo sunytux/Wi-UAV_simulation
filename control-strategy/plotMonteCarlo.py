@@ -1,7 +1,12 @@
 #! /usr/bin/python2.7 -u
 # -*- coding: utf-8 -*-
 
-"""TODO
+"""Plot figures to study Monte Carlo batch of simulations.
+
+It plots two figures:
+- A heat map of the arrival density at the end of the simulation.
+- The CDF of the RSS at end-location compared to the one of the initial
+location.
 
 Usage:
     monteCarlo.py
