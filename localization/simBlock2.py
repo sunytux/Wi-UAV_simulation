@@ -30,11 +30,12 @@ from matplotlib.patches import Ellipse
 from matplotlib.collections import LineCollection
 import operator
 
+# ffmpeg -framerate 4 -pattern_type glob -i '*.png' out.mp4
 
-USER = 0
+USER = 3
 TX_GUESS_X, TX_GUESS_Y = 300, 250  # 300, 200
 
-TRAJECTORY = "square"
+TRAJECTORY = "control"
 TRAJECTORY_STEP = 50
 LAPS = 2
 X_UAV, Y_UAV = 20, 470

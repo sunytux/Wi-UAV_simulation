@@ -25,7 +25,7 @@ from scipy.stats import norm
 import statistics
 import os
 
-USER = 0
+USER = 4
 STEP = 10
 
 EXP = DEFAULT_CONF
@@ -92,9 +92,9 @@ def main(outputDir):
 
 def plotErrorHistogram(ERR):
     # Cosmetics
-    # plt.title("Bearing error")
+    plt.title("Weighted-RSS bearing error for user " + str(USER))
     plt.xlabel("Bearing error [$^\circ$]")
-    plt.ylabel("Normalized probability density function")
+    plt.ylabel("Normalized pdt [/]")
 
     # Histogram
     binSize = 5
@@ -106,36 +106,57 @@ def plotErrorHistogram(ERR):
         alpha=0.2
     )
 
-    # normal distribution
-    # mean = statistics.mean(ERR)
-    # stdev = statistics.stdev(ERR)
-    # x_axis = np.arange(-180, 180, 0.1)
-
-    # label = "$ \mathcal{N} $\n" + \
-    #         "$ \mu = {:.3f} $,\n$ \sigma = {:.3f} $".format(mean, stdev)
-    # plt.plot(
-    #     x_axis, norm.pdf(x_axis, mean, stdev),
-    #     label=label
-    # )
-
-    # Approched normal distribution
-    ERR_simplified = filter(lambda x: abs(x) < 100, ERR)
-    density_correction = float(len(ERR_simplified)) / len(ERR)
-    print(density_correction)
-
-    mean = statistics.mean(ERR_simplified)
-    stdev = statistics.stdev(ERR_simplified)
+    # METHOD 1: one normal distribution
+    mean = statistics.mean(ERR)
+    stdev = statistics.stdev(ERR)
     x_axis = np.arange(-180, 180, 0.1)
-    y_axis = np.array(norm.pdf(x_axis, mean, stdev)) * density_correction
 
-    label = "$ \mathcal{N} $ oronly > $ 100^\circ $\n" + \
+    label = "$ \mathcal{N} $\n" + \
             "$ \mu = {:.3f} $,\n$ \sigma = {:.3f} $".format(mean, stdev)
     plt.plot(
-        x_axis, y_axis,
+        x_axis, norm.pdf(x_axis, mean, stdev),
         label=label
     )
 
-    # Approched 2nd lobe w/ von mises
+    # METHOD 2: sum of two normal distributions
+    # ERR_simplified = filter(lambda x: abs(x) < 100, ERR)
+    # density_correction = float(len(ERR_simplified)) / len(ERR)
+    # print(density_correction)
+
+    # mean = statistics.mean(ERR_simplified)
+    # stdev = statistics.stdev(ERR_simplified)
+    # x_axis = np.arange(-180, 180, 0.1)
+    # y_axis = np.array(norm.pdf(x_axis, mean, stdev)) * density_correction
+
+    # label = "$ \mathcal{N} $ only > $ 100^\circ $\n" + \
+    #         "$ \mu = {:.3f} $,\n$ \sigma = {:.3f} $".format(mean, stdev)
+    # plt.plot(
+    #     x_axis, y_axis,
+    #     label=label
+    # )
+    # # Approched 2nd lobe
+    # ERR_2 = filter(lambda x: abs(x) > 100, ERR)
+    # ERR_2 = map(lambda a: (360 + a) % 360, ERR_2)
+    # density_correction = float(len(ERR_2)) / len(ERR)
+    # print(density_correction)
+
+    # mean = utils.realAngle(statistics.mean(ERR_2), deg=True)
+    # stdev = statistics.stdev(ERR_2)
+    # x_axis = np.arange(-180, 180, 0.1)
+
+    # label = "$ \mathcal{N} $ only < $ 100^\circ $\n" + \
+    #         "$ \mu = {:.3f} $,\n$ \sigma = {:.3f} $".format(mean, stdev)
+
+    # y_axis = np.array(
+    #     norm.pdf(map(lambda a: (360 + a) % 360, x_axis), mean, stdev)
+    # ) * density_correction
+    # plt.plot(
+    #     x_axis, y_axis,
+    #     label=label
+    # )
+
+    # REMOVE ME ?
+    # METHOD 2bis: 2nd lobe w/ von mises
     # ERR_2 = filter(lambda x: abs(x) > 100, ERR)
     # ERR_2 = map(lambda a: (360 + a) % 360, ERR_2)
 
@@ -149,29 +170,7 @@ def plotErrorHistogram(ERR):
     #     x_axis, vonmises.pdf(np.deg2rad(x_axis), kappa, loc=loc, scale=scale),
     #     label=label
     # )
-
-    # Approched 2nd lobe w/ von mises
-    ERR_2 = filter(lambda x: abs(x) > 100, ERR)
-    ERR_2 = map(lambda a: (360 + a) % 360, ERR_2)
-    density_correction = float(len(ERR_2)) / len(ERR)
-    print(density_correction)
-
-    mean = utils.realAngle(statistics.mean(ERR_2), deg=True)
-    stdev = statistics.stdev(ERR_2)
-    x_axis = np.arange(-180, 180, 0.1)
-
-    label = "$ \mathcal{N} $ only < $ 100^\circ $\n" + \
-            "$ \mu = {:.3f} $,\n$ \sigma = {:.3f} $".format(mean, stdev)
-
-    y_axis = np.array(
-        norm.pdf(map(lambda a: (360 + a) % 360, x_axis), mean, stdev)
-    ) * density_correction
-    plt.plot(
-        x_axis, y_axis,
-        label=label
-    )
-
-    plt.legend(loc="upper right")
+    # plt.legend(loc="upper right")
 
 
 def plotAngleEstimationError(X, Y, U_AoA, V_AoA, U_AoU, V_AoU, ERR):

@@ -26,7 +26,7 @@ DEFAULT_CONF = {
     ],
 
     # Algorithm options
-    "use-database": "/home/sami/docs/phd/projects/04_wireless_UAV_simulator/"\
+    "use-database": "/home/sami/docs/phd/projects/04_wi-uav_simulation/"\
                     "data/ground-truth/ground-truth-map.csv",
     "routine-algo": "optimize",
     "routineKwargs": {},

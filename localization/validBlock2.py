@@ -28,7 +28,7 @@ import random
 USER = 4
 STEP = 100
 
-MODE = "horiz"
+MODE = "random"
 USE_DBm = False
 
 MU1 = np.deg2rad(-0.03)  # RADIAN !
@@ -42,6 +42,9 @@ EXP.update({
     "routine-algo": "scan",
     "AoA-algo": "weighted-rss"
 })
+
+# TODO make it cleaner
+mode = MODE
 
 
 def main(mode, outputDir):
@@ -61,11 +64,12 @@ def main(mode, outputDir):
 
     log.close()
 
-    # plotAoA(memAoA)
+    # plotAoA(memAoA, EXP)
     plotCostFct(memAoA)
 
+    figName = "cost-fct-user{}-{}".format(USER, mode)
     plt.gcf().savefig(
-        os.path.join(outputDir, "cost-fct-user-" + str(USER)),
+        os.path.join(outputDir, figName),
         bbox_inches='tight',
         dpi=300
     )
@@ -100,7 +104,7 @@ def vertTrajectory(drone, env, memAoA, iteration):
         AoA = drone.getAoA()
         memAoA[USER].append([drone.x, drone.y, AoA])
 
-        drone.y = (drone.y + 25) % drone.MAX_Y
+        drone.y = (drone.y + 24) % drone.MAX_Y
 
 
 def gridTrajectory(drone, env, memAoA):
@@ -132,7 +136,8 @@ def plotCostFct(memAoA):
     y_hest = Y[hestIdx]
 
     plot.plot_scenario(edge='gainsboro', face='whitesmoke')
-    plot.plot_terminals(EXP['terminals'])
+    plot.plot_terminals(EXP['terminals'], visibleTerminals=[4],
+                        userOpt={"markeredgecolor": 'black'})
 
     W = np.ones(len(X)) * stepGridSearch
     H = np.ones(len(X)) * stepGridSearch
@@ -140,16 +145,39 @@ def plotCostFct(memAoA):
     # The trajectory
     xUAV = [mem[0] for mem in memAoA[USER]]
     yUAV = [mem[1] for mem in memAoA[USER]]
-    plt.plot(xUAV, yUAV, 'ko', markersize=3, color='white')
+    if mode in ["horiz", "vert"]:
+        plot.plot_flight(
+            np.array(zip(xUAV, yUAV)),
+            iOpt={
+                "color": "white",
+                "markerfacecolor": 'white',
+                "markeredgecolor": 'black',
+                "marker": "X"
+            },
+            fOpt={
+                "markerfacecolor": 'white',
+                "markeredgecolor": 'black'
+            },
+            insideOpt={
+                "color": 'white',
+                "markerfacecolor": 'white',
+                "markeredgecolor": 'white'
+            }
+        )
+    else:
+        plt.plot(xUAV, yUAV, 'ko', markersize=3, color='white')
 
     # The estimated Tx position
     plt.plot(x_hest, y_hest, marker="*", markersize=10,
              color='white', markeredgecolor='black')
 
+    plt.xlabel("x [m]")
+    plt.ylabel("y [m]")
+    plt.grid(linestyle=':', linewidth=1, color='gainsboro')
     plt.axis('equal')
     plt.axis([0, 650, 0, 500])
 
-    plot.plot_heatmap(X, Y, cost, W, H, legend="Cost")
+    plot.plot_heatmap(X, Y, cost, W, H)  #, legend="Cost")
 
 
 def costFctNormal(x, y, memAoA):
@@ -174,7 +202,7 @@ def costFctNormal(x, y, memAoA):
 
 
 def costFctMSE(x, y, memAoA):
-    """ Mean Squared Error cost function """
+    """Mean Squared Error cost function."""
     cost = 0
 
     for xUAV, yUAV, aoa in memAoA[USER]:
