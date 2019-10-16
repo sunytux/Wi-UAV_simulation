@@ -83,7 +83,7 @@ def plot_heatmap(x, y, z, w, h, legend=False):
         cb.set_label(legend)
 
 
-def plot_terminals(terminals, bsOpt={}, userOpt={}):
+def plot_terminals(terminals, bsOpt={}, userOpt={}, visibleTerminals=[]):
     """Plot terminals on a map
 
        terminals is a list of N terminals represented either by a Mx6 numpy
@@ -95,6 +95,9 @@ def plot_terminals(terminals, bsOpt={}, userOpt={}):
     if type(terminals[0]) == dict:
         terminals = [np.array([[t["x"], t["y"], t["z"],
                                 t["u"], t["v"], t["w"]]]) for t in terminals]
+
+    if len(visibleTerminals) == 0:
+        visibleTerminals = range(len(terminals))
 
     defaultBsOpt = {
         "marker": "o",
@@ -114,9 +117,10 @@ def plot_terminals(terminals, bsOpt={}, userOpt={}):
     defaultUserOpt.update(userOpt)
 
     for i in range(len(terminals)):
-        opt = defaultBsOpt if i == 0 else defaultUserOpt
-        t = np.atleast_2d(terminals[i])
-        plt.plot(t[:, 0], t[:, 1], **opt)
+        if i in visibleTerminals:
+            opt = defaultBsOpt if i == 0 else defaultUserOpt
+            t = np.atleast_2d(terminals[i])
+            plt.plot(t[:, 0], t[:, 1], **opt)
 
 
 def plot_flight(drone, iOpt={}, fOpt={}, insideOpt={}):
@@ -126,10 +130,10 @@ def plot_flight(drone, iOpt={}, fOpt={}, insideOpt={}):
     """
 
     defaultiOpt = {
-        "marker": "x",
+        "marker": "X",
         "color": 'black',
         "markersize": 10,
-        "markeredgewidth": 4,
+        "markeredgewidth": 1,
         "zorder": 5
     }
     defaultfOpt = {
